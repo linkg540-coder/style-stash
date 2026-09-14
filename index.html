@@ -610,7 +610,7 @@ function checkSave(){const ok=bulkPhotos.length>0||(!!newPhoto&&!!newCat);docume
 function saveItem(){
   if(bulkPhotos.length){
     const newItems=bulkPhotos.map((p,idx)=>({id:'i'+Date.now()+idx+Math.random().toString(36).slice(2,6),name:'',category:(bulkAis[idx]&&bulkAis[idx].id)||newCat||'other',colors:newColors.slice(),photo:p,created:Date.now()+idx}));
-    Promise.all(newItems.map(it=>put('items',it))).then(()=>{items.push(...newItems);closeAdd();renderCloset();updateStats();toast('Stashed '+newItems.length+' items! ⚡');newItems.forEach(cutoutQueue)});
+    Promise.all(newItems.map(it=>put('items',it))).then(()=>{items.push(...newItems);closeAdd();renderCloset();updateStats();toast('Stashed '+newItems.length+' items! ⚡');newItems.forEach(cutoutQueue);openDetail(newItems[0].id);toggle3D()});
     return;
   }
   const item={id:'i'+Date.now()+Math.random().toString(36).slice(2,6),name:document.getElementById('nameInput').value.trim(),category:newCat,colors:newColors.slice(),photo:newPhoto,created:Date.now()};
