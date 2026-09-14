@@ -932,8 +932,8 @@ window.addEventListener('load',()=>{
       const co1=await makeCutout(sc.toDataURL('image/png'));
       R.push('synthetic bgRemove: '+(co1?'OK len='+co1.length:'NULL'));
       // 2. real photo from Commons
-      const jr=await (await fetch('https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch='+encodeURIComponent('woman in red dress')+'&gsrlimit=8&prop=imageinfo&iiprop=url&iiurlwidth=640&format=json&origin=*')).json();
-      const ps=Object.values(jr.query.pages).filter(p=>p.imageinfo&&/\.(jpe?g|png)$/i.test(p.imageinfo[0].url));
+      const jr=await (await fetch('https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch='+encodeURIComponent('woman dress fashion model')+'&gsrlimit=8&prop=imageinfo&iiprop=url&iiurlwidth=640&format=json&origin=*')).json();
+      const ps=Object.values(jr.query.pages).filter(p=>p.imageinfo&&/\.(jpe?g|png)(\?|$)/i.test(p.imageinfo[0].url.split('?')[0]));
       const im2=await new Promise((res,rej)=>{const m=new Image();m.crossOrigin='anonymous';m.onload=()=>res(m);m.onerror=rej;m.src=ps[0].imageinfo[0].thumburl});
       const pc=document.createElement('canvas');pc.width=im2.naturalWidth;pc.height=im2.naturalHeight;
       pc.getContext('2d').drawImage(im2,0,0);
