@@ -679,8 +679,8 @@ window.addEventListener('load',()=>{
     async function imgUrl(q){
       const r=await fetch('https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch='+encodeURIComponent(q)+'&gsrlimit=5&prop=imageinfo&iiprop=url&iiurlwidth=320&format=json&origin=*');
       const j=await r.json();
-      const ps=Object.values(j.query.pages).filter(p=>p.imageinfo&&p.imageinfo[0]&&/\.(jpe?g|png)$/i.test(p.imageinfo[0].url));
-      if(!ps.length)throw new Error('no image for '+q);
+      const ps=(j.query&&j.query.pages)?Object.values(j.query.pages).filter(p=>p.imageinfo&&p.imageinfo[0]&&/\.(jpe?g|png)$/i.test(p.imageinfo[0].url)):[];
+      if(!ps.length)throw new Error('no image for '+q+' :: '+JSON.stringify(j).slice(0,120));
       return ps[0].imageinfo[0].thumburl;
     }
     async function toDataUrl(u){
@@ -688,7 +688,7 @@ window.addEventListener('load',()=>{
       return new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.readAsDataURL(blob)});
     }
     try{
-      const qs=['dress fashion','high heel shoe','blue jeans denim'];
+      const qs=['dress','high heel','jeans'];
       const pics=[];
       for(const q of qs)pics.push(await toDataUrl(await imgUrl(q)));
       bulkPhotos=pics;bulkAis=new Array(3);newCat=null;
