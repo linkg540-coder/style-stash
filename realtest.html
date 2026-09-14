@@ -677,9 +677,11 @@ window.addEventListener('load',()=>{
     if(!out){out=document.createElement('div');out.id='rOut';out.style.cssText='position:fixed;top:130px;right:10px;z-index:9999;background:#fff;color:#000;padding:10px;max-width:280px;font-size:12px;border-radius:10px;border:2px solid #000;white-space:pre-wrap';document.body.appendChild(out)}
     out.textContent='fetching real photos...';
     async function imgUrl(q){
-      const r=await fetch('https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=filetype:bitmap '+encodeURIComponent(q)+'&gsrlimit=1&prop=imageinfo&iiprop=url&iiurlwidth=320&format=json&origin=*');
+      const r=await fetch('https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch='+encodeURIComponent(q)+'&gsrlimit=5&prop=imageinfo&iiprop=url&iiurlwidth=320&format=json&origin=*');
       const j=await r.json();
-      return Object.values(j.query.pages)[0].imageinfo[0].thumburl;
+      const ps=Object.values(j.query.pages).filter(p=>p.imageinfo&&p.imageinfo[0]&&/\.(jpe?g|png)$/i.test(p.imageinfo[0].url));
+      if(!ps.length)throw new Error('no image for '+q);
+      return ps[0].imageinfo[0].thumburl;
     }
     async function toDataUrl(u){
       const r=await fetch(u);const blob=await r.blob();
