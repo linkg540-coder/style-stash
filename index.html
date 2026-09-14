@@ -90,6 +90,24 @@ input.txt:focus{outline:none;border-color:var(--pink)}
 .save-bar{position:fixed;bottom:0;left:0;right:0;max-width:520px;margin:0 auto;padding:12px 16px calc(14px + var(--safe-b));background:rgba(253,242,248,.92);backdrop-filter:blur(12px);border-top:1px solid var(--border)}
 .save-bar button{width:100%;border:none;background:var(--pink);color:#fff;font-family:inherit;font-weight:700;font-size:1rem;border-radius:16px;padding:15px;cursor:pointer;box-shadow:0 6px 20px rgba(236,72,153,.35)}
 .save-bar button:disabled{opacity:.45;box-shadow:none}
+/* tools + bulk */
+.toolbar{display:flex;gap:8px;align-items:center;padding:2px 2px 12px;flex-wrap:wrap}
+.tool-btn{border:1px solid var(--border);background:var(--card);color:var(--muted);border-radius:999px;padding:7px 13px;font-size:.75rem;font-weight:700;font-family:inherit;cursor:pointer}
+.tool-btn.on{background:var(--pink);border-color:var(--pink);color:#fff}
+.tool-count{font-size:.72rem;color:var(--muted);font-weight:700;margin-left:auto}
+.item .check{position:absolute;top:7px;right:7px;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.92);display:none;align-items:center;justify-content:center;font-size:.72rem;font-weight:900;color:var(--pink);z-index:2}
+.bulk-on .item .check{display:flex}
+.item.sel{border-color:var(--pink);box-shadow:0 0 0 2.5px var(--pink)}
+.bulk-bar{position:fixed;bottom:70px;left:0;right:0;max-width:520px;margin:0 auto;display:none;gap:10px;padding:10px 16px;background:rgba(255,255,255,.95);backdrop-filter:blur(14px);border-top:1px solid var(--border);z-index:41}
+.bulk-bar.open{display:flex}
+.bulk-bar button{flex:1;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:14px;padding:12px 6px;font-family:inherit;font-weight:700;font-size:.78rem;cursor:pointer}
+.bulk-bar .danger{color:#d4778f;border-color:#f7dbe4;background:#fff5f7}
+.bulk-add-btn{width:100%;margin-top:10px;border:1.5px solid var(--pink-soft);background:var(--card);color:var(--pink);border-radius:16px;padding:13px;font-family:inherit;font-weight:700;font-size:.85rem;cursor:pointer}
+.thumb-strip{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:none}
+.thumb-strip::-webkit-scrollbar{display:none}
+.thumb{position:relative;flex:0 0 auto;width:74px;height:99px;border-radius:12px;overflow:hidden;border:1px solid var(--border)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb button{position:absolute;top:3px;right:3px;background:rgba(255,255,255,.92);border:none;border-radius:50%;width:20px;height:20px;font-size:.6rem;cursor:pointer;padding:0;line-height:1;color:#d4778f}
 /* picker */
 .pick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
 .pick{position:relative;border-radius:14px;overflow:hidden;border:2.5px solid transparent;cursor:pointer;aspect-ratio:3/4}
@@ -130,6 +148,11 @@ nav .fab .ico{width:54px;height:54px;background:linear-gradient(135deg,var(--pin
   <!-- CLOSET VIEW -->
   <section id="view-closet">
     <div class="chips" id="closetChips"></div>
+    <div class="toolbar" id="closetTools" style="display:none">
+      <button class="tool-btn" id="sortBtn" onclick="cycleSort()">↕ Newest</button>
+      <button class="tool-btn" id="bulkBtn" onclick="toggleBulk()">☑ Select</button>
+      <span class="tool-count" id="toolCount"></span>
+    </div>
     <div class="grid" id="closetGrid"></div>
     <div class="empty" id="closetEmpty" style="display:none">
       <div class="big">👗</div>
@@ -163,13 +186,16 @@ nav .fab .ico{width:54px;height:54px;background:linear-gradient(135deg,var(--pin
       <p><b>Tap to take a photo</b><br>or choose from gallery</p>
     </div>
     <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none" onchange="onPhotoPick(this)">
+    <button class="bulk-add-btn" id="bulkPickBtn" onclick="document.getElementById('bulkFileInput').click()">⚡ Scan many — stash a whole pile</button>
+    <input type="file" id="bulkFileInput" accept="image/*" multiple style="display:none" onchange="onBulkPick(this)">
     <div id="addForm" style="display:none">
-      <div class="photo-prev"><img id="addPrev"><button onclick="retakePhoto()">🔄</button></div>
+      <div class="thumb-strip" id="bulkStrip" style="display:none"></div>
+      <div class="photo-prev" id="photoPrevWrap"><img id="addPrev"><button onclick="retakePhoto()">🔄</button></div>
       <label class="lbl">Category</label>
       <div class="cat-wrap" id="catWrap"></div>
       <label class="lbl">Colors (pick all that apply)</label>
       <div class="color-wrap" id="colorWrap"></div>
-      <label class="lbl">Nickname (optional)</label>
+      <label class="lbl" id="nameLbl">Nickname (optional)</label>
       <input type="text" class="txt" id="nameInput" maxlength="40" placeholder="e.g. my fave graphic tee">
     </div>
   </div>
@@ -217,6 +243,16 @@ nav .fab .ico{width:54px;height:54px;background:linear-gradient(135deg,var(--pin
   </div>
 </div>
 
+<div class="bulk-bar" id="bulkBar">
+  <button onclick="openCatSheet()">📂 Category</button>
+  <button class="danger" onclick="bulkDelete()">🗑 Delete</button>
+  <button onclick="toggleBulk()">Done</button>
+</div>
+<div class="modal" id="catModal"><div class="sheet">
+  <h3 style="margin-top:.2rem">Set category for picked items</h3>
+  <div class="cat-wrap" id="catSheetWrap" style="margin-top:14px"></div>
+  <div class="btn-row"><button onclick="closeCatSheet()">Cancel</button></div>
+</div></div>
 <nav>
   <button class="on" id="navCloset" onclick="go('closet')"><span class="ico">👗</span>Closet</button>
   <button class="fab" onclick="openAdd()"><span class="ico">＋</span></button>
@@ -275,7 +311,7 @@ const COLORS=[
 const catOf=id=>CATS.find(c=>c.id===id)||CATS[7];
 
 // ============ STATE ============
-let items=[], looks=[], filter='all', newPhoto=null, newCat=null, newColors=[], buildSel={}, surpItems=[], detailId=null;
+let items=[], looks=[], filter='all', newPhoto=null, newCat=null, newColors=[], buildSel={}, surpItems=[], detailId=null, sortBy=localStorage.getItem('ss_sort')||'new', bulkMode=false, bulkSel=new Set(), bulkPhotos=[];
 
 // ============ HELPERS ============
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),1900)}
@@ -287,19 +323,63 @@ function renderChips(){
   wrap.innerHTML=cats.map(c=>'<button class="chip'+(filter===c.id?' on':'')+'" onclick="setFilter(\''+c.id+'\')">'+c.label+'</button>').join('');
 }
 function setFilter(f){filter=f;renderChips();renderCloset()}
+const SORTS=[{id:'new',label:'Newest'},{id:'old',label:'Oldest'},{id:'cat',label:'Category'},{id:'az',label:'A–Z'}];
+function sortItems(list){const l=list.slice();
+  if(sortBy==='old')l.sort((a,b)=>a.created-b.created);
+  else if(sortBy==='cat')l.sort((a,b)=>catOf(a.category).label.localeCompare(catOf(b.category).label)||a.created-b.created);
+  else if(sortBy==='az')l.sort((a,b)=>(a.name||catOf(a.category).label).localeCompare(b.name||catOf(b.category).label));
+  else l.sort((a,b)=>b.created-a.created);
+  return l}
+function cycleSort(){const idx=SORTS.findIndex(s=>s.id===sortBy);sortBy=SORTS[(idx+1)%SORTS.length].id;localStorage.setItem('ss_sort',sortBy);renderCloset()}
+function toggleBulk(){bulkMode=!bulkMode;bulkSel=new Set();renderCloset()}
+function toggleBulkSel(id){if(bulkSel.has(id))bulkSel.delete(id);else bulkSel.add(id);renderCloset()}
+function renderTools(){
+  const t=document.getElementById('closetTools');
+  t.style.display=items.length?'flex':'none';
+  document.getElementById('sortBtn').textContent='↕ '+(SORTS.find(s=>s.id===sortBy)||SORTS[0]).label;
+  const bb=document.getElementById('bulkBtn');
+  bb.textContent=bulkMode?('✕ Picked '+bulkSel.size):'☑ Select';
+  bb.classList.toggle('on',bulkMode);
+  document.getElementById('toolCount').textContent=bulkMode?(bulkSel.size+' picked'):(items.length+' items');
+  document.getElementById('bulkBar').classList.toggle('open',bulkMode&&bulkSel.size>0);
+}
+function bulkDelete(){
+  const n=bulkSel.size; if(!n)return;
+  if(!confirm('Delete '+n+' item'+(n>1?'s':'')+' from your closet?'))return;
+  const ids=[...bulkSel];
+  Promise.all(ids.map(id=>del('items',id))).then(()=>{
+    items=items.filter(x=>!bulkSel.has(x.id));
+    looks.forEach(l=>{const before=l.items.length;l.items=l.items.filter(x=>!bulkSel.has(x.id));if(l.items.length!==before)put('looks',l)});
+    bulkSel=new Set();renderCloset();updateStats();toast('Removed '+n+' item'+(n>1?'s':''));
+  });
+}
+function openCatSheet(){
+  if(!bulkSel.size)return;
+  document.getElementById('catSheetWrap').innerHTML=CATS.map(c=>'<button class="cat-b" onclick="bulkApplyCat(\''+c.id+'\')"><span class="ico">'+c.ico+'</span><small>'+c.label+'</small></button>').join('');
+  document.getElementById('catModal').classList.add('open');
+}
+function closeCatSheet(){document.getElementById('catModal').classList.remove('open')}
+function bulkApplyCat(cat){
+  Promise.all([...bulkSel].map(id=>{const it=items.find(x=>x.id===id);if(it){it.category=cat;return put('items',it)}})).then(()=>{
+    closeCatSheet();bulkSel=new Set();renderCloset();toast('Category updated 👌');
+  });
+}
 
 function renderCloset(){
   const grid=document.getElementById('closetGrid'), empty=document.getElementById('closetEmpty');
-  const list=items.filter(i=>filter==='all'||i.category===filter);
+  const list=sortItems(items.filter(i=>filter==='all'||i.category===filter));
   empty.style.display=items.length===0?'block':'none';
   grid.style.display=items.length?'grid':'none';
+  grid.classList.toggle('bulk-on',bulkMode);
   grid.innerHTML=list.map(i=>{
     const dots=i.colors.slice(0,4).map(cid=>{const c=COLORS.find(x=>x.id===cid);return c?'<span class="dot" style="background:'+c.hex+'"></span>':''}).join('');
-    return '<div class="item" onclick="openDetail(\''+i.id+'\')">'+
+    return '<div class="item'+(bulkSel.has(i.id)?' sel':'')+'" onclick="'+(bulkMode?'toggleBulkSel(\''+i.id+'\')':'openDetail(\''+i.id+'\')')+'">'+
       '<img src="'+i.photo+'" loading="lazy" alt="">'+
       '<span class="cat-tag">'+catOf(i.category).ico+' '+catOf(i.category).label+'</span>'+
-      '<span class="dots">'+dots+'</span></div>';
+      '<span class="dots">'+dots+'</span>'+
+      '<span class="check">✓</span></div>';
   }).join('');
+  renderTools();
 }
 
 function renderLooks(){
@@ -324,6 +404,7 @@ function deleteLook(id){del('looks',id).then(()=>{looks=looks.filter(l=>l.id!==i
 function updateStats(){document.getElementById('statsPill').textContent=items.length+' items · '+looks.length+' looks'}
 
 function go(view){
+  if(view!=='closet'&&(bulkMode||bulkSel.size)){bulkMode=false;bulkSel=new Set();document.getElementById('bulkBar').classList.remove('open')}
   document.getElementById('view-closet').style.display=view==='closet'?'block':'none';
   document.getElementById('view-outfits').style.display=view==='outfits'?'block':'none';
   document.getElementById('navCloset').classList.toggle('on',view==='closet');
@@ -336,8 +417,15 @@ function go(view){
 function openAdd(){document.getElementById('addStage').classList.add('open')}
 function closeAdd(){document.getElementById('addStage').classList.remove('open');resetAdd()}
 function resetAdd(){
-  newPhoto=null;newCat=null;newColors=[];
+  newPhoto=null;newCat=null;newColors=[];bulkPhotos=[];
   document.getElementById('fileInput').value='';
+  document.getElementById('bulkFileInput').value='';
+  document.getElementById('bulkStrip').style.display='none';
+  document.getElementById('bulkStrip').innerHTML='';
+  document.getElementById('photoPrevWrap').style.display='';
+  document.getElementById('nameLbl').style.display='';
+  document.getElementById('nameInput').style.display='';
+  document.getElementById('bulkPickBtn').style.display='';
   document.getElementById('addForm').style.display='none';
   document.getElementById('dropZone').style.display='block';
   document.getElementById('nameInput').value='';
@@ -355,6 +443,28 @@ function onPhotoPick(input){
   });
 }
 function retakePhoto(){resetAdd();document.getElementById('fileInput').click()}
+function onBulkPick(input){
+  const files=[...(input.files||[])]; if(!files.length)return;
+  input.value='';
+  document.getElementById('dropZone').style.display='none';
+  document.getElementById('bulkPickBtn').style.display='none';
+  toast('Loading '+files.length+' photo'+(files.length>1?'s':'')+'…');
+  Promise.all(files.map(f=>compress(f))).then(pics=>{
+    bulkPhotos=pics.filter(Boolean);
+    if(!bulkPhotos.length){toast('Couldn\'t read those photos 😢');resetAdd();return}
+    document.getElementById('addForm').style.display='block';
+    document.getElementById('photoPrevWrap').style.display='none';
+    document.getElementById('nameLbl').style.display='none';
+    document.getElementById('nameInput').style.display='none';
+    renderBulkStrip();renderCatBtns();renderColorBtns();checkSave();
+  });
+}
+function renderBulkStrip(){
+  const s=document.getElementById('bulkStrip');
+  s.style.display='flex';
+  s.innerHTML=bulkPhotos.map((p,idx)=>'<div class="thumb"><img src="'+p+'"><button onclick="dropBulk('+idx+')">✕</button></div>').join('');
+}
+function dropBulk(idx){bulkPhotos.splice(idx,1);if(bulkPhotos.length){renderBulkStrip();checkSave()}else{resetAdd()}}
 function compress(file,maxDim,q){
   maxDim=maxDim||800; q=q||.82;
   return new Promise(res=>{
@@ -381,8 +491,13 @@ function renderColorBtns(){
     '<button class="color-b'+(newColors.indexOf(c.id)>=0?' on':'')+'" style="background:'+c.hex+'" onclick="toggleColor(\''+c.id+'\')" aria-label="'+c.id+'"></button>').join('');
 }
 function toggleColor(id){const i=newColors.indexOf(id);i>=0?newColors.splice(i,1):newColors.push(id);renderColorBtns()}
-function checkSave(){document.getElementById('saveBtn').disabled=!(newPhoto&&newCat)}
+function checkSave(){const ok=(newPhoto||bulkPhotos.length)&&newCat;document.getElementById('saveBtn').disabled=!ok;document.getElementById('saveBtn').textContent=bulkPhotos.length?'Stash all ('+bulkPhotos.length+') ✨':'Save to closet ✨'}
 function saveItem(){
+  if(bulkPhotos.length){
+    const newItems=bulkPhotos.map((p,idx)=>({id:'i'+Date.now()+idx+Math.random().toString(36).slice(2,6),name:'',category:newCat,colors:newColors.slice(),photo:p,created:Date.now()+idx}));
+    Promise.all(newItems.map(it=>put('items',it))).then(()=>{items.push(...newItems);closeAdd();renderCloset();updateStats();toast('Stashed '+newItems.length+' items! ⚡')});
+    return;
+  }
   const item={id:'i'+Date.now()+Math.random().toString(36).slice(2,6),name:document.getElementById('nameInput').value.trim(),category:newCat,colors:newColors.slice(),photo:newPhoto,created:Date.now()};
   put('items',item).then(()=>{items.push(item);closeAdd();renderCloset();updateStats();toast('Stashed! ✨')});
 }
