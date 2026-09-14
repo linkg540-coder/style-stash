@@ -360,19 +360,17 @@ function aiSuggest(dataUrl){
 }
 function classifyBulk(){
   const pill=document.getElementById('aiPill');
-  pill.style.display='flex';pill.textContent='🤖 AI scanning your pile…';
+  pill.style.display='flex';pill.textContent='🤖 AI sorting each item…';
   (async()=>{
     for(let i=0;i<bulkPhotos.length;i++){
       bulkAis[i]=await aiCategory(bulkPhotos[i]);
       renderBulkStrip();
     }
-    const tally={};bulkAis.forEach(r=>{if(r)tally[r.id]=(tally[r.id]||0)+1});
-    const best=Object.entries(tally).sort((a,b)=>b[1]-a[1])[0];
-    if(best){
-      if(!newCat){newCat=best[0];renderCatBtns();checkSave()}
-      const c=catOf(best[0]);
-      pill.textContent='🤖 AI: mostly '+c.ico+' '+c.label+' ('+best[1]+'/'+bulkPhotos.length+') — tap a category to change';
-    }else pill.textContent='🤖 Hmm, not sure — pick a category 👇';
+    const tally={};let unsure=0;
+    bulkAis.forEach(r=>{if(r)tally[r.id]=(tally[r.id]||0)+1;else unsure++});
+    const parts=Object.entries(tally).sort((a,b)=>b[1]-a[1]).map(e=>catOf(e[0]).ico+'×'+e[1]);
+    if(parts.length)pill.textContent='🤖 AI sorted each item: '+parts.join(' ')+(unsure?' — '+unsure+' unsure 🤔'+(newCat?' → '+catOf(newCat).ico:' (pick below or 🧣 Other)'):' ✨');
+    else pill.textContent='🤖 Hmm, not sure — pick a category for all of them 👇';
   })();
 }
 function nameSuggest(){
@@ -547,7 +545,7 @@ function onBulkPick(input){
     document.getElementById('photoPrevWrap').style.display='none';
     document.getElementById('nameLbl').style.display='none';
     document.getElementById('nameInput').style.display='none';
-    bulkAis=new Array(bulkPhotos.length).fill(null);
+    bulkAis=new Array(bulkPhotos.length);
     renderBulkStrip();renderCatBtns();renderColorBtns();checkSave();
     classifyBulk();
   });
@@ -555,7 +553,7 @@ function onBulkPick(input){
 function renderBulkStrip(){
   const s=document.getElementById('bulkStrip');
   s.style.display='flex';
-  s.innerHTML=bulkPhotos.map((p,idx)=>'<div class="thumb">'+(bulkAis[idx]?'<span class="t-ai">'+bulkAis[idx].icon+'</span>':'')+'<img src="'+p+'"><button onclick="dropBulk('+idx+')">✕</button></div>').join('');
+  s.innerHTML=bulkPhotos.map((p,idx)=>'<div class="thumb">'+(bulkAis[idx]?'<span class="t-ai">'+bulkAis[idx].icon+'</span>':(bulkAis[idx]===null?'<span class="t-ai">❔</span>':''))+'<img src="'+p+'"><button onclick="dropBulk('+idx+')">✕</button></div>').join('');
 }
 function dropBulk(idx){bulkPhotos.splice(idx,1);bulkAis.splice(idx,1);if(bulkPhotos.length){renderBulkStrip();checkSave()}else{resetAdd()}}
 function compress(file,maxDim,q){
@@ -584,10 +582,10 @@ function renderColorBtns(){
     '<button class="color-b'+(newColors.indexOf(c.id)>=0?' on':'')+'" style="background:'+c.hex+'" onclick="toggleColor(\''+c.id+'\')" aria-label="'+c.id+'"></button>').join('');
 }
 function toggleColor(id){const i=newColors.indexOf(id);i>=0?newColors.splice(i,1):newColors.push(id);renderColorBtns()}
-function checkSave(){const ok=(newPhoto||bulkPhotos.length)&&newCat;document.getElementById('saveBtn').disabled=!ok;document.getElementById('saveBtn').textContent=bulkPhotos.length?'Stash all ('+bulkPhotos.length+') ✨':'Save to closet ✨'}
+function checkSave(){const ok=bulkPhotos.length>0||(!!newPhoto&&!!newCat);document.getElementById('saveBtn').disabled=!ok;document.getElementById('saveBtn').textContent=bulkPhotos.length?'Stash all ('+bulkPhotos.length+') ✨':'Save to closet ✨'}
 function saveItem(){
   if(bulkPhotos.length){
-    const newItems=bulkPhotos.map((p,idx)=>({id:'i'+Date.now()+idx+Math.random().toString(36).slice(2,6),name:'',category:newCat,colors:newColors.slice(),photo:p,created:Date.now()+idx}));
+    const newItems=bulkPhotos.map((p,idx)=>({id:'i'+Date.now()+idx+Math.random().toString(36).slice(2,6),name:'',category:(bulkAis[idx]&&bulkAis[idx].id)||newCat||'other',colors:newColors.slice(),photo:p,created:Date.now()+idx}));
     Promise.all(newItems.map(it=>put('items',it))).then(()=>{items.push(...newItems);closeAdd();renderCloset();updateStats();toast('Stashed '+newItems.length+' items! ⚡')});
     return;
   }
