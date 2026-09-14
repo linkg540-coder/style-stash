@@ -130,6 +130,8 @@ input.txt:focus{outline:none;border-color:var(--pink)}
 .d-card img{width:100%;display:block;max-height:44vh;object-fit:cover;pointer-events:none}
 .d-sheen{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at var(--sx,60%) var(--sy,25%),rgba(255,255,255,.4),rgba(255,255,255,0) 55%)}
 .d-shadow{height:20px;margin:8px auto 0;width:72%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(120,40,80,.38),transparent 70%);filter:blur(3px);transform:translateX(var(--shx,0px)) scale(var(--shs,1))}
+.d-motion{position:absolute;top:10px;right:10px;z-index:3;border:none;background:rgba(255,255,255,.85);color:#a3266b;font:600 12px/1 Quicksand;padding:8px 12px;border-radius:999px;box-shadow:0 2px 8px rgba(120,40,80,.25)}
+.d-scene{touch-action:none}
 .sheet h3{font-size:1.15rem;margin:.8rem 0 .2rem}
 .sheet .meta{font-size:.78rem;color:var(--muted);font-weight:600}
 .btn-row{display:flex;gap:10px;margin-top:1rem}
@@ -246,6 +248,7 @@ nav .fab .ico{width:54px;height:54px;background:linear-gradient(135deg,var(--pin
   <div class="sheet">
     <img class="hero" id="dImg">
     <div class="d-scene" id="dScene">
+      <button class="d-motion" id="dMotionBtn" onclick="event.stopPropagation();enableGyroTilt(true)">📲 Motion</button>
       <div class="d-card" id="dCard">
         <img id="dImg3" alt="">
         <div class="d-sheen" id="dSheen"></div>
@@ -610,7 +613,8 @@ function saveItem(){
 }
 
 // ============ DETAIL ============
-let tiltCur={rx:-6,ry:8},tiltRaf=null,tiltDrag=null,tiltGyro=false;
+let tiltCur={rx:-6,ry:8},tiltRaf=null,tiltDrag=null,tiltGyro=false,tiltVel={x:0,y:0},tiltAnim=null,tiltLastT=0;
+function cancelTiltAnim(){if(tiltAnim){cancelAnimationFrame(tiltAnim);tiltAnim=null}}
 function setTilt(rx,ry){
   tiltCur.rx=Math.max(-42,Math.min(42,rx));tiltCur.ry=Math.max(-42,Math.min(42,ry));
   if(!tiltRaf)tiltRaf=requestAnimationFrame(()=>{
@@ -623,32 +627,56 @@ function setTilt(rx,ry){
     if(s){s.style.setProperty('--shx',(-tiltCur.ry*1.4)+'px');s.style.setProperty('--shs',String(1-Math.abs(tiltCur.rx)/120))}
   });
 }
-function tiltStart(e){tiltDrag={x:e.clientX,y:e.clientY,rx:tiltCur.rx,ry:tiltCur.ry};e.preventDefault()}
+function tiltStart(e){
+  cancelTiltAnim();
+  tiltDrag={x:e.clientX,y:e.clientY,rx:tiltCur.rx,ry:tiltCur.ry};
+  tiltVel={x:0,y:0};tiltLastT=performance.now();
+  e.preventDefault();
+}
 function tiltMove(e){
   if(!tiltDrag)return;
-  setTilt(tiltDrag.rx-(e.clientY-tiltDrag.y)*.32,tiltDrag.ry+(e.clientX-tiltDrag.x)*.42);
+  const now=performance.now(),dt=Math.max(8,now-tiltLastT);tiltLastT=now;
+  const pRx=tiltCur.rx,pRy=tiltCur.ry;
+  const nrx=tiltDrag.rx-(e.clientY-tiltDrag.y)*.32,nry=tiltDrag.ry+(e.clientX-tiltDrag.x)*.42;
+  setTilt(nrx,nry);
+  const f=16/dt;
+  tiltVel.x=(tiltCur.rx-pRx)*f;tiltVel.y=(tiltCur.ry-pRy)*f;
 }
-function tiltEnd(){tiltDrag=null}
+function tiltEnd(){
+  if(!tiltDrag)return;tiltDrag=null;
+  const rest={rx:-6,ry:8};
+  cancelTiltAnim();
+  let vx=tiltVel.x,vy=tiltVel.y;
+  const step=()=>{
+    vx=(vx+(rest.rx-tiltCur.rx)*.015)*.955;
+    vy=(vy+(rest.ry-tiltCur.ry)*.015)*.955;
+    setTilt(tiltCur.rx+vx,tiltCur.ry+vy);
+    if(Math.abs(vx)<.015&&Math.abs(vy)<.015&&Math.abs(rest.rx-tiltCur.rx)<.2&&Math.abs(rest.ry-tiltCur.ry)<.2){
+      setTilt(rest.rx,rest.ry);tiltAnim=null;return;
+    }
+    tiltAnim=requestAnimationFrame(step);
+  };
+  tiltAnim=requestAnimationFrame(step);
+}
 function toggle3D(){
   const scene=document.getElementById('dScene');
   const on=scene.classList.toggle('on');
   document.getElementById('dImg').style.display=on?'none':'';
-  if(!on)return;
-  enableGyroTilt();
+  if(!on){cancelTiltAnim();return}
   setTilt(-6,8);
-  toast('Drag the card to spin 🧊');
 }
-function enableGyroTilt(){
-  if(tiltGyro)return; tiltGyro=true;
+function enableGyroTilt(force){
+  if(tiltGyro)return;
   const h=e=>{
     if(!document.getElementById('dScene').classList.contains('on'))return;
     const g=e.gamma||0,b=e.beta||0;
     setTilt((b-45)*.35,-g*.6);
   };
+  const start=()=>{tiltGyro=true;const btn=document.getElementById('dMotionBtn');if(btn)btn.style.display='none';window.addEventListener('deviceorientation',h)};
   if(typeof DeviceOrientationEvent==='undefined')return;
   if(DeviceOrientationEvent.requestPermission){
-    DeviceOrientationEvent.requestPermission().then(s=>{if(s==='granted')window.addEventListener('deviceorientation',h)}).catch(()=>{});
-  }else window.addEventListener('deviceorientation',h);
+    DeviceOrientationEvent.requestPermission().then(s=>{if(s==='granted')start();else toast('Motion blocked — drag instead 👆')}).catch(()=>toast('Motion blocked — drag instead 👆'));
+  }else start();
 }
 function openDetail(id){
   const i=items.find(x=>x.id===id); if(!i)return;
