@@ -614,7 +614,7 @@ function saveItem(){
     return;
   }
   const item={id:'i'+Date.now()+Math.random().toString(36).slice(2,6),name:document.getElementById('nameInput').value.trim(),category:newCat,colors:newColors.slice(),photo:newPhoto,created:Date.now()};
-  put('items',item).then(()=>{items.push(item);closeAdd();renderCloset();updateStats();toast('Stashed! ✨');cutoutQueue(item)});
+  put('items',item).then(()=>{items.push(item);closeAdd();renderCloset();updateStats();toast('Stashed! ✨');openDetail(item.id);toggle3D()});
 }
 
 // ============ GARMENT CUTOUT (3D) ============
@@ -649,6 +649,17 @@ function cropToContent(cv,pad){
   const oc=document.createElement('canvas');oc.width=cw;oc.height=ch;
   oc.getContext('2d').drawImage(cv,minX,minY,cw,ch,0,0,cw,ch);
   return oc;
+}
+function polishCutout(cv){
+  const c=document.createElement('canvas');c.width=cv.width;c.height=cv.height;
+  const x=c.getContext('2d',{willReadFrequently:true});
+  x.filter='blur(0.6px)';
+  x.drawImage(cv,0,0);
+  x.filter='none';
+  const d=x.getImageData(0,0,c.width,c.height),px=d.data;
+  for(let i=3;i<px.length;i+=4)px[i]=px[i]>=128?255:0;
+  x.putImageData(d,0,0);
+  return c;
 }
 function bgRemove(img){
   const w=img.naturalWidth,h=img.naturalHeight;
@@ -711,34 +722,38 @@ async function makeCutout(dataUrl){
         const bctx=big.getContext('2d');
         bctx.imageSmoothingEnabled=true;bctx.imageSmoothingQuality='high';
         bctx.drawImage(small,0,0,w,h);
+        const bdd=bctx.getImageData(0,0,w,h),bpx=bdd.data;
+        for(let i=3;i<bpx.length;i+=4)bpx[i]=bpx[i]>=128?255:0;
+        bctx.putImageData(bdd,0,0);
         const out=document.createElement('canvas');out.width=w;out.height=h;
         const octx=out.getContext('2d');
         octx.drawImage(img,0,0);
         octx.globalCompositeOperation='destination-in';
-        octx.filter='blur(1px)';
         octx.drawImage(big,0,0);
         res.close();
         const cc=cropToContent(out,0.05);
-        if(cc){done=true;return cc.toDataURL('image/png')}
+        if(cc){done=true;return polishCutout(cc).toDataURL('image/png')}
       }
     }
     if(!done)res.close();
   }catch(e){}
   const bg=bgRemove(img);
-  return bg?(cropToContent(bg,0.05)||{toDataURL:()=>bg.toDataURL('image/png')}).toDataURL('image/png'):null;
+  if(!bg)return null;
+  const cc=cropToContent(bg,0.05);
+  return polishCutout(cc||bg).toDataURL('image/png');
 }
-const cutQ=[];let cutBusy=false;
+const cutQ=[];let cutBusy=false,cuttingId=null;
 function cutoutQueue(it){if(it&&it.photo)cutQ.push(it.id);runCutQ()}
 async function runCutQ(){
   if(cutBusy)return;cutBusy=true;
   while(cutQ.length){
     const id=cutQ.shift();
     const it=items.find(x=>x.id===id);
-    if(!it||it.cutout||!it.photo)continue;
+    if(!it||it.cutout||!it.photo||cuttingId===id)continue;
     try{
       const co=await makeCutout(it.photo);
       if(co){it.cutout=co;put('items',it).catch(()=>{});
-        if(detailId===id&&document.getElementById('dScene').classList.contains('on'))build3DLayers(co);
+        if(detailId===id&&document.getElementById('dScene').classList.contains('on')){build3DLayers(co);toast('3D model ready 🧊')}
       }
     }catch(e){}
   }
@@ -800,9 +815,12 @@ async function toggle3D(){
   if(!i){build3DLayers(null);setTilt(-6,8);return}
   if(i.cutout){build3DLayers(i.cutout);setTilt(-6,8);return}
   if(!i.photo){build3DLayers(null);setTilt(-6,8);return}
+  if(cuttingId===i.id)return;
   toast('Building your 3D model… 🧵 (first time downloads AI once)');
+  cuttingId=i.id;
   let co=null;
   try{co=await makeCutout(i.photo)}catch(e){}
+  cuttingId=null;
   if(co){i.cutout=co;put('items',i).catch(()=>{})}
   build3DLayers(co);
   setTilt(-6,8);
