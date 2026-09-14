@@ -343,14 +343,21 @@ function renderTools(){
   document.getElementById('toolCount').textContent=bulkMode?(bulkSel.size+' picked'):(items.length+' items');
   document.getElementById('bulkBar').classList.toggle('open',bulkMode&&bulkSel.size>0);
 }
+let delArmed=false, delTimer=null;
 function bulkDelete(){
   const n=bulkSel.size; if(!n)return;
-  if(!confirm('Delete '+n+' item'+(n>1?'s':'')+' from your closet?'))return;
+  const btn=document.querySelector('#bulkBar .danger');
+  if(!delArmed){
+    delArmed=true; btn.textContent='Tap again to delete '+n;
+    clearTimeout(delTimer); delTimer=setTimeout(()=>{delArmed=false;btn.textContent='🗑 Delete'},2600);
+    return;
+  }
+  clearTimeout(delTimer); delArmed=false; btn.textContent='🗑 Delete';
   const ids=[...bulkSel];
   Promise.all(ids.map(id=>del('items',id))).then(()=>{
     items=items.filter(x=>!bulkSel.has(x.id));
     looks.forEach(l=>{const before=l.items.length;l.items=l.items.filter(x=>!bulkSel.has(x.id));if(l.items.length!==before)put('looks',l)});
-    bulkSel=new Set();renderCloset();updateStats();toast('Removed '+n+' item'+(n>1?'s':''));
+    bulkSel=new Set();delArmed=false;renderCloset();updateStats();toast('Removed '+n+' item'+(n>1?'s':''));
   });
 }
 function openCatSheet(){
