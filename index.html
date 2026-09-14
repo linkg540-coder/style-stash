@@ -38,6 +38,9 @@ h1 span{color:var(--pink)}
 .chip.on{background:var(--pink);border-color:var(--pink);color:#fff;box-shadow:0 4px 12px rgba(236,72,153,.3)}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .item{position:relative;border-radius:16px;overflow:hidden;background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow);aspect-ratio:3/4;cursor:pointer}
+/* AI */
+.ai-pill{display:flex;align-items:center;gap:6px;background:var(--pink-soft);border:1px solid var(--pink);color:var(--dark);font-size:.78rem;font-weight:700;padding:8px 12px;border-radius:12px;margin-bottom:10px;line-height:1.3}
+.t-ai{position:absolute;left:3px;bottom:3px;background:rgba(255,255,255,.95);border:1px solid var(--border);border-radius:8px;font-size:.7rem;padding:1px 5px;font-weight:700;z-index:2}
 .item img{width:100%;height:100%;object-fit:cover;display:block}
 .item .cat-tag{position:absolute;top:7px;left:7px;background:rgba(255,255,255,.92);color:var(--pink);font-size:.62rem;font-weight:700;padding:3px 9px;border-radius:999px}
 .item .dots{position:absolute;bottom:7px;left:7px;display:flex;gap:4px}
@@ -189,6 +192,7 @@ nav .fab .ico{width:54px;height:54px;background:linear-gradient(135deg,var(--pin
     <button class="bulk-add-btn" id="bulkPickBtn" onclick="document.getElementById('bulkFileInput').click()">⚡ Scan many — stash a whole pile</button>
     <input type="file" id="bulkFileInput" accept="image/*" multiple style="display:none" onchange="onBulkPick(this)">
     <div id="addForm" style="display:none">
+      <div id="aiPill" class="ai-pill" style="display:none"></div>
       <div class="thumb-strip" id="bulkStrip" style="display:none"></div>
       <div class="photo-prev" id="photoPrevWrap"><img id="addPrev"><button onclick="retakePhoto()">🔄</button></div>
       <label class="lbl">Category</label>
@@ -196,7 +200,7 @@ nav .fab .ico{width:54px;height:54px;background:linear-gradient(135deg,var(--pin
       <label class="lbl">Colors (pick all that apply)</label>
       <div class="color-wrap" id="colorWrap"></div>
       <label class="lbl" id="nameLbl">Nickname (optional)</label>
-      <input type="text" class="txt" id="nameInput" maxlength="40" placeholder="e.g. my fave graphic tee">
+      <input type="text" class="txt" id="nameInput" maxlength="40" placeholder="e.g. my fave graphic tee" oninput="nameSuggest()">
     </div>
   </div>
   <div class="save-bar"><button id="saveBtn" onclick="saveItem()" disabled>Save to closet ✨</button></div>
@@ -309,10 +313,87 @@ const COLORS=[
   {id:'blue',hex:'#60a5fa'},{id:'green',hex:'#4ade80'},{id:'yellow',hex:'#fbbf24'},
   {id:'orange',hex:'#fb923c'},{id:'brown',hex:'#a0715a'},{id:'beige',hex:'#e8d5c0'}
 ];
+// ============ AI BRAIN (~100 garment types per category) ============
+const BRAIN={"tops":["t-shirt","tee","graphic tee","crop top","tank top","camisole","cami","tube top","halter top","halterneck","blouse","button-up shirt","button-down shirt","dress shirt","oxford shirt","polo shirt","polo","henley","tunic top","tunic blouse","off-shoulder top","cold shoulder top","peasant blouse","wrap top","corset top","bustier top","bodysuit","bralette","bandeau top","turtleneck","mock neck top","cowl neck top","v-neck top","scoop neck top","boat neck top","sweater","pullover sweater","turtleneck sweater","crewneck sweater","cable knit sweater","chunky knit sweater","tunic sweater","cropped sweater","off-shoulder sweater","hoodie","pullover hoodie","zip-up hoodie","sweatshirt","crewneck sweatshirt","oversized sweatshirt","quarter zip","half zip top","fleece top","flannel shirt","flannel","chambray shirt","denim shirt","plaid shirt","checked shirt","gingham shirt","striped shirt","floral blouse","silk blouse","satin blouse","lace top","mesh top","sheer top","knit top","ribbed top","linen top","cotton top","velvet top","sequin top","crochet top","smock top","swing top","boxy top","muscle tee","sleeveless top","long sleeve top","short sleeve top","cap sleeve top","kimono top","blouson top","peplum top","jersey","sports jersey","rugby shirt","golf shirt","tennis shirt","bowling shirt","hawaiian shirt","aloha shirt","guayabera","kurta top","kurti","statement top","going out top","layering top","base layer","thermal top","thermal shirt","vest top","slip top","bardot top","keyhole top","puff sleeve top","bishop sleeve top","balloon sleeve top","shrug top"],"bottoms":["jeans","skinny jeans","straight leg jeans","bootcut jeans","flare jeans","wide leg jeans","mom jeans","boyfriend jeans","ripped jeans","denim","jeggings","trousers","pants","slacks","chinos","khakis","cargo pants","cargo trousers","joggers","jogger pants","sweatpants","track pants","leggings","leather pants","pleather pants","vinyl pants","corduroy pants","linen pants","palazzo pants","culottes","gauchos","paperbag pants","high waisted pants","cigaretette pants","cigarette pants","tapered pants","drawstring pants","harem pants","parachute pants","bike shorts","cycling shorts","biker shorts","shorts","denim shorts","jean shorts","jorts","daisy dukes","chino shorts","cargo shorts","running shorts","gym shorts","basketball shorts","tennis shorts","lounge shorts","pleated shorts","bermuda shorts","mom shorts","skirt","mini skirt","midi skirt","maxi skirt","pencil skirt","a line skirt","pleated skirt","tennis skirt","skater skirt","wrap skirt","denim skirt","leather skirt","tulle skirt","circle skirt","slip skirt","cargo skirt","tiered skirt","sarong","overalls","dungarees","shortalls","capri pants","cropped pants","ankle pants","cropped trousers","utility pants","painter pants","carpenter pants","fisherman pants","pajama pants","pj pants","lounge pants","tights","footless tights","stirrup leggings","yoga pants","bootcut pants","flared trousers","tailored trousers","suit pants","wool trousers","sweat shorts","compression leggings","cycling leggings","petticoat","bloomers","swim trunks","swimming trunks","trunks","mom trousers"],"dresses":["dress","maxi dress","midi dress","mini dress","bodycon dress","a line dress","shift dress","sheath dress","wrap dress","shirt dress","sweater dress","t shirt dress","slip dress","sundress","summer dress","floral dress","gown","evening gown","ball gown","cocktail dress","prom dress","homecoming dress","wedding dress","bridal gown","bridesmaid dress","tea length dress","trumpet dress","mermaid dress","empire waist dress","halter dress","tube dress","corset dress","blazer dress","jumper dress","pinafore dress","pinafore","smock dress","swing dress","skater dress","tennis dress","knit dress","ribbed dress","turtleneck dress","long sleeve dress","short sleeve dress","sleeveless dress","off shoulder dress","cold shoulder dress","one shoulder dress","asymmetric dress","pleated dress","tiered dress","ruched dress","sequin dress","velvet dress","satin dress","silk dress","lace dress","mesh dress","crochet dress","knitted dress","denim dress","kaftan","kaftan dress","caftan","muumuu","housedress","nightgown","nightdress","chemise","babydoll dress","jumper","romper","jumpsuit","playsuit","pencil dress","fit and flare dress","peplum dress","trapeze dress","tent dress","apron dress","graduation dress","gala gown","black dress","little black dress","lbd","party dress","date night dress","brunch dress","vacation dress","resort dress","linen dress","cotton dress","jersey dress","tunic dress","embroidered dress","smocked dress"],"shoes":["sneakers","running shoes","trainers","kicks","athletic shoes","basketball shoes","tennis shoes","cross trainers","walking shoes","hiking shoes","trail shoes","trail runners","golf shoes","soccer cleats","football boots","cleats","track spikes","spikes","skate shoes","canvas shoes","slip on shoes","espadrilles","boat shoes","deck shoes","loafers","penny loafers","tassel loafers","driving moccasins","moccasins","moc toe shoes","oxfords","oxford shoes","derby shoes","brogues","wingtips","monk strap shoes","dress shoes","ballet flats","flats","pointed flats","mary janes","kitten heels","pumps","high heels","stilettos","stiletto heels","block heels","wedge heels","wedges","platform heels","platform shoes","sandals","flip flops","thong sandals","slides","slide sandals","gladiator sandals","strappy sandals","heeled sandals","platform sandals","chunky sneakers","dad sneakers","retro sneakers","high top sneakers","low top sneakers","high tops","converse","vans","jordans","air force ones","air forces","dunks","gazelles","sambas","stan smiths","superstars","clogs","heeled clogs","mules","slingback heels","slingbacks","d orsay heels","opera pumps","sock boots","stiletto boots","boots","ankle boots","booties","chelsea boots","combat boots","lug boots","lace up boots","work boots","steel toe boots","cowboy boots","western boots","riding boots","knee high boots","over the knee boots","thigh high boots","rain boots","wellies","wellington boots","gumboots","snow boots","winter boots","fur boots","sheepskin boots","uggs","hiking boots","desert boots","chukka boots","jodhpur boots"],"outerwear":["coat","jacket","overcoat","trench coat","trench","raincoat","rain coat","poncho","parka","anorak","puffer jacket","puffer coat","puffer","down jacket","down coat","quilted jacket","bomber jacket","bomber","varsity jacket","letterman jacket","denim jacket","jean jacket","leather jacket","biker jacket","moto jacket","blazer","oversized blazer","suit jacket","tuxedo jacket","waistcoat","suit vest","vest","down vest","puffer vest","fleece vest","field jacket","military jacket","army jacket","cargo jacket","utility jacket","chore jacket","work jacket","barn jacket","chore coat","trucker jacket","windbreaker","windcheater","shell jacket","softshell jacket","hardshell jacket","track jacket","baseball jacket","coach jacket","mechanic jacket","corduroy jacket","suede jacket","shearling jacket","aviator jacket","duffle coat","duffel coat","pea coat","peacoat","wool coat","wool overcoat","chesterfield coat","polo coat","topcoat","cape","cloak","shrug","bolero","bolero jacket","kimono jacket","haori","morning coat","tailcoat","frock coat","ulster coat","macintosh","mackintosh","cagoule","snorkel parka","fishtail parka","teddy jacket","teddy coat","fuzzy jacket","faux fur coat","fur coat","faux fur jacket","winter coat","insulated jacket","ski jacket","snowboard jacket","mountaineering jacket","alpine jacket","overshirt","shacket","shirt jacket","swing coat","swing jacket","rain parka","storm jacket","suit"],"bags":["handbag","purse","tote bag","tote","shoulder bag","crossbody bag","crossbody","satchel","hobo bag","bucket bag","baguette bag","clutch","evening bag","wristlet","minaudiere","envelope clutch","coin purse","wallet","cardholder","card case","backpack","rucksack","knapsack","school bag","book bag","laptop bag","laptop tote","messenger bag","courier bag","duffel bag","duffle bag","weekender bag","gym bag","sports bag","travel bag","carry on bag","luggage","suitcase","briefcase","attache case","camera bag","fanny pack","bum bag","belt bag","hip pack","sling bag","chest bag","saddle bag","frame bag","top handle bag","doctor bag","bowling bag","beach bag","straw bag","wicker bag","basket bag","market bag","shopping bag","canvas bag","cotton bag","nylon bag","leather bag","suede bag","velvet bag","quilted bag","chain bag","phone bag","phone pouch","pouch","zip pouch","makeup bag","cosmetic bag","toiletry bag","pencil case","coin bag","mini backpack","micro bag","nano bag","puffy bag","cloud bag","croissant bag","shopper bag","shopper tote","grocery tote","cinch bag","drawstring backpack","laptop sleeve","clear bag"],"access":["necklace","choker","pendant","locket","chain necklace","collar necklace","statement necklace","beaded necklace","pearl necklace","name necklace","layering necklace","earrings","stud earrings","drop earrings","dangle earrings","hoop earrings","huggies","ear cuffs","ear climber","ear jacket","tassel earrings","threader earrings","chandelier earrings","bracelet","bangle","bangles","cuff bracelet","charm bracelet","friendship bracelet","beaded bracelet","tennis bracelet","anklet","ankle bracelet","toe ring","ring","cocktail ring","signet ring","stackable rings","midi rings","thumb ring","band ring","brooch","pin","lapel pin","badge","hairpin","hair clip","hair claws","claw clip","hair tie","hairband","headband","hair scarf","scrunchie","hair ribbon","hair comb","tiara","crown","hat","cap","baseball cap","trucker cap","snapback","dad hat","beanie","beret","bucket hat","sun hat","floppy hat","straw hat","fedora","panama hat","visor","glasses","sunglasses","shades","eyeglasses","reading glasses","watch","wristwatch","bracelet watch","belt","skinny belt","wide belt","obi belt","corset belt","gloves","fingerless gloves","mittens","scarf","silk scarf","bandana","neckerchief","shawl","wrap","umbrella","parasol","fan","keychain","key fob","lanyard","phone case","socks","stockings","bow tie","bolo tie","necktie","tie","stole","sombrero","windsor tie"],"hijabs":["hijab","khimar","shayla","amira hijab","al amira","two piece hijab","one piece hijab","instant hijab","jersey hijab","chiffon hijab","satin hijab","silk hijab","cotton hijab","modal hijab","viscose hijab","crinkle hijab","georgette hijab","voile hijab","muslin hijab","crinkle chiffon","premium chiffon","sport hijab","sports hijab","athletic hijab","swim hijab","swimming hijab","prayer hijab","prayer veil","daily hijab","everyday hijab","wedding hijab","bridal hijab","party hijab","embroidered hijab","beaded hijab","lace edge hijab","printed hijab","floral hijab","patterned hijab","solid hijab","ombre hijab","gradient hijab","pearl hijab","underscarf","under cap","undercap","bonnet cap","tube undercap","no slip undercap","cotton underscarf","hijab cap","hijab band","hijab pins","magnetic pins","hijab scarf","modest scarf","headscarf","head scarf","headwrap","head wrap","turban","turban hijab","drape hijab","wrapped hijab","square hijab","rectangular hijab","long hijab","wide hijab","niqab","burqa","chador","jilbab","abaya","prayer set","hijab set","sheer hijab","ribbed hijab","slub hijab","sparkle hijab","glitter hijab","sequin hijab","matte satin hijab","ice silk hijab","balloon hijab","bubble hijab","khimar set"],"bengali":["saree","sari","sharee","shari","jamdani","dhakai jamdani","jamdani saree","benarasi","banarasi","benarasi saree","banarasi saree","katan","soft katan","katan saree","muslin saree","dhaka muslin","tangail saree","tant","taant","taanter shari","shantipur tant","baluchari","baluchari saree","garad","garad saree","korial","garad korial","lal paar saree","red border saree","bishnupuri","bishnupur silk","murshidabad silk","rajshahi silk","matka silk","muga silk","moonga","endi silk","eri silk","pat silk","half silk","half silk saree","tussar","tassar","tussar saree","handloom saree","handloom","powerloom saree","printed saree","embroidered saree","karchupi","karchupi work","zari saree","zardosi","stone work saree","georgette saree","net saree","silk saree","art silk","tissue saree","organza saree","designer saree","wedding saree","bridal saree","gaye holud","holud saree","eid saree","eid outfit","eid dress","party saree","casual saree","daily saree","office saree","cotton saree","kantha","nakshi kantha","kantha saree","kantha stitch","puja saree","durga puja saree","salwar kameez","salwar suit","shalwar kameez","kameez","three piece","punjabi suit","churidar","churidar kameez","anarkali","anarkali suit","kurti","kurta","kurta pajama","panjabi","koti","sharara","gharara","lehenga","lehenga choli","choli","ghagra","ghagra choli","dupatta","orna","odna","mekhela","mekhela chador","sherwani","achkan","bandhgala","nehru jacket","modi jacket"],"other":["kimono","costume","onesie","pajamas","pajama set","pj set","nightwear","night set","robe","bathrobe","dressing gown","housecoat","loungewear","loungewear set","tracksuit","uniform","work uniform","scrubs","apron","swimwear","swimsuit","bikini","bathing suit","swimming suit","one piece swimsuit","rash guard","sports gear","yoga set","dance costume","leotard","tutu","activewear","athleisure","halloween costume","cosplay","festive outfit","traditional wear","cultural dress","ethnic wear","folk costume","stage outfit","prayer garment","ihram","thobe","dishdasha","chiton","academic gown","graduation gown","smoking jacket","dinner jacket","house dress","wrap robe","slip robe","caftan robe"]};
+// ============ AI CLASSIFIER (MobileNet, fully in-browser, no API keys) ============
+let mnModel=null,mnLoad=null;
+function loadMN(){
+  if(mnModel)return Promise.resolve(mnModel);
+  if(mnLoad)return mnLoad;
+  mnLoad=new Promise((res,rej)=>{
+    const l1=document.createElement('script');l1.src='https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js';
+    l1.onload=()=>{const l2=document.createElement('script');l2.src='https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js';
+      l2.onload=()=>window.mobilenet.load({version:2,alpha:1.0}).then(res).catch(rej);
+      l2.onerror=rej;document.head.appendChild(l2)};
+    l1.onerror=rej;document.head.appendChild(l1);
+  }).then(m=>{mnModel=m;return m});
+  return mnLoad;
+}
+function aiCategory(dataUrl){
+  return loadMN().then(model=>new Promise(res=>{
+    const img=new Image();img.onload=()=>res(model.classify(img,5));img.onerror=()=>res(null);img.src=dataUrl;
+  })).then(preds=>{
+    if(!preds||!preds.length)return null;
+    const scores={};
+    preds.forEach(p=>{
+      const toks=(p.className||'').toLowerCase().split(/[^a-z]+/).filter(Boolean);
+      for(const cat in BRAIN)for(const w of BRAIN[cat])for(const t of toks){
+        if(t===w)scores[cat]=(scores[cat]||0)+p.probability;
+        else if(t.length>=4&&w.length>=4&&(t.includes(w)||w.includes(t)))scores[cat]=(scores[cat]||0)+p.probability*.6;
+      }
+    });
+    const best=Object.entries(scores).sort((a,b)=>b[1]-a[1])[0];
+    if(!best||best[1]<.15)return null;
+    const c=catOf(best[0]);
+    return {id:best[0],icon:c.ico,label:c.label,pct:Math.min(99,Math.round(best[1]*100))};
+  }).catch(()=>null);
+}
+function aiSuggest(dataUrl){
+  const pill=document.getElementById('aiPill');
+  pill.style.display='flex';pill.textContent='🤖 AI scanning… (first time loads the brain, hang tight)';
+  aiCategory(dataUrl).then(r=>{
+    if(r){
+      if(!newCat){newCat=r.id;renderCatBtns();checkSave()}
+      pill.textContent='🤖 AI says '+r.icon+' '+r.label+' ('+r.pct+'%) — tap a category to change';
+    }else pill.textContent='🤖 Hmm, not sure — pick a category 👇';
+  });
+}
+function classifyBulk(){
+  const pill=document.getElementById('aiPill');
+  pill.style.display='flex';pill.textContent='🤖 AI scanning your pile…';
+  (async()=>{
+    for(let i=0;i<bulkPhotos.length;i++){
+      bulkAis[i]=await aiCategory(bulkPhotos[i]);
+      renderBulkStrip();
+    }
+    const tally={};bulkAis.forEach(r=>{if(r)tally[r.id]=(tally[r.id]||0)+1});
+    const best=Object.entries(tally).sort((a,b)=>b[1]-a[1])[0];
+    if(best){
+      if(!newCat){newCat=best[0];renderCatBtns();checkSave()}
+      const c=catOf(best[0]);
+      pill.textContent='🤖 AI: mostly '+c.ico+' '+c.label+' ('+best[1]+'/'+bulkPhotos.length+') — tap a category to change';
+    }else pill.textContent='🤖 Hmm, not sure — pick a category 👇';
+  })();
+}
+function nameSuggest(){
+  if(bulkPhotos.length||newCat)return;
+  const v=document.getElementById('nameInput').value.trim().toLowerCase();
+  if(v.length<3)return;
+  let best=null;
+  for(const cat in BRAIN)for(const w of BRAIN[cat]){
+    if(v.includes(w)&&(!best||w.length>best.w.length))best={id:cat,w:w};
+  }
+  if(best){
+    newCat=best.id;renderCatBtns();checkSave();
+    const c=catOf(best.id);
+    document.getElementById('aiPill').style.display='flex';
+    document.getElementById('aiPill').textContent='🤖 Sounds like '+c.ico+' '+c.label+' — tap a category to change';
+  }
+}
 const catOf=id=>CATS.find(c=>c.id===id)||CATS.find(c=>c.id==='other');
 
 // ============ STATE ============
-let items=[], looks=[], filter='all', newPhoto=null, newCat=null, newColors=[], buildSel={}, surpItems=[], detailId=null, sortBy=localStorage.getItem('ss_sort')||'new', bulkMode=false, bulkSel=new Set(), bulkPhotos=[];
+let items=[], looks=[], filter='all', newPhoto=null, newCat=null, newColors=[], buildSel={}, surpItems=[], detailId=null, sortBy=localStorage.getItem('ss_sort')||'new', bulkMode=false, bulkSel=new Set(), bulkPhotos=[], bulkAis=[];
 
 // ============ HELPERS ============
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),1900)}
@@ -425,7 +506,8 @@ function go(view){
 function openAdd(){document.getElementById('addStage').classList.add('open')}
 function closeAdd(){document.getElementById('addStage').classList.remove('open');resetAdd()}
 function resetAdd(){
-  newPhoto=null;newCat=null;newColors=[];bulkPhotos=[];
+  newPhoto=null;newCat=null;newColors=[];bulkPhotos=[];bulkAis=[];
+  const ap=document.getElementById('aiPill');if(ap){ap.style.display='none';ap.textContent=''}
   document.getElementById('fileInput').value='';
   document.getElementById('bulkFileInput').value='';
   document.getElementById('bulkStrip').style.display='none';
@@ -448,6 +530,7 @@ function onPhotoPick(input){
     document.getElementById('dropZone').style.display='none';
     document.getElementById('addForm').style.display='block';
     renderCatBtns();renderColorBtns();checkSave();
+    aiSuggest(dataUrl);
   });
 }
 function retakePhoto(){resetAdd();document.getElementById('fileInput').click()}
@@ -464,15 +547,17 @@ function onBulkPick(input){
     document.getElementById('photoPrevWrap').style.display='none';
     document.getElementById('nameLbl').style.display='none';
     document.getElementById('nameInput').style.display='none';
+    bulkAis=new Array(bulkPhotos.length).fill(null);
     renderBulkStrip();renderCatBtns();renderColorBtns();checkSave();
+    classifyBulk();
   });
 }
 function renderBulkStrip(){
   const s=document.getElementById('bulkStrip');
   s.style.display='flex';
-  s.innerHTML=bulkPhotos.map((p,idx)=>'<div class="thumb"><img src="'+p+'"><button onclick="dropBulk('+idx+')">✕</button></div>').join('');
+  s.innerHTML=bulkPhotos.map((p,idx)=>'<div class="thumb">'+(bulkAis[idx]?'<span class="t-ai">'+bulkAis[idx].icon+'</span>':'')+'<img src="'+p+'"><button onclick="dropBulk('+idx+')">✕</button></div>').join('');
 }
-function dropBulk(idx){bulkPhotos.splice(idx,1);if(bulkPhotos.length){renderBulkStrip();checkSave()}else{resetAdd()}}
+function dropBulk(idx){bulkPhotos.splice(idx,1);bulkAis.splice(idx,1);if(bulkPhotos.length){renderBulkStrip();checkSave()}else{resetAdd()}}
 function compress(file,maxDim,q){
   maxDim=maxDim||800; q=q||.82;
   return new Promise(res=>{
