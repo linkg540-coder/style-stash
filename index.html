@@ -300,7 +300,8 @@ const CATS=[
   {id:'tops',ico:'👚',label:'Tops'},{id:'bottoms',ico:'👖',label:'Bottoms'},
   {id:'dresses',ico:'👗',label:'Dresses'},{id:'shoes',ico:'👟',label:'Shoes'},
   {id:'outerwear',ico:'🧥',label:'Outer'},{id:'bags',ico:'👜',label:'Bags'},
-  {id:'access',ico:'💍',label:'Access.'},{id:'other',ico:'🧣',label:'Other'}
+  {id:'access',ico:'💍',label:'Access.'},{id:'hijabs',ico:'🧕',label:'Hijabs'},
+  {id:'bengali',ico:'🥻',label:'Bengali'},{id:'other',ico:'🧣',label:'Other'}
 ];
 const COLORS=[
   {id:'black',hex:'#1c1c1e'},{id:'white',hex:'#f8f8f2'},{id:'gray',hex:'#8e8e93'},
@@ -308,7 +309,7 @@ const COLORS=[
   {id:'blue',hex:'#60a5fa'},{id:'green',hex:'#4ade80'},{id:'yellow',hex:'#fbbf24'},
   {id:'orange',hex:'#fb923c'},{id:'brown',hex:'#a0715a'},{id:'beige',hex:'#e8d5c0'}
 ];
-const catOf=id=>CATS.find(c=>c.id===id)||CATS[7];
+const catOf=id=>CATS.find(c=>c.id===id)||CATS.find(c=>c.id==='other');
 
 // ============ STATE ============
 let items=[], looks=[], filter='all', newPhoto=null, newCat=null, newColors=[], buildSel={}, surpItems=[], detailId=null, sortBy=localStorage.getItem('ss_sort')||'new', bulkMode=false, bulkSel=new Set(), bulkPhotos=[];
@@ -531,14 +532,16 @@ function deleteFromDetail(){
 // ============ SURPRISE ============
 function surpriseMe(){
   const by=c=>items.filter(i=>i.category===c);
-  const tops=by('tops'),bottoms=by('bottoms'),dresses=by('dresses'),shoes=by('shoes');
-  if((!tops.length||!bottoms.length)&&!dresses.length){
+  const tops=by('tops'),bottoms=by('bottoms'),dresses=by('dresses'),shoes=by('shoes'),
+        fullOut=[...dresses,...by('bengali')],hijabs=by('hijabs');
+  if((!tops.length||!bottoms.length)&&!fullOut.length){
     toast('Add some clothes first! 👀');return;
   }
   const pick=arr=>arr[Math.floor(Math.random()*arr.length)];
   let combo=[];
-  if(dresses.length&&Math.random()<.3){combo=[pick(dresses)];if(shoes.length)combo.push(pick(shoes))}
+  if(fullOut.length&&Math.random()<.3){combo=[pick(fullOut)];if(shoes.length)combo.push(pick(shoes))}
   else{combo=[pick(tops),pick(bottoms)];if(shoes.length)combo.push(pick(shoes))}
+  if(hijabs.length&&Math.random()<.5)combo.push(pick(hijabs));
   surpItems=combo;
   document.getElementById('surpGrid').innerHTML=combo.map(i=>'<img src="'+i.photo+'" alt="">').join('');
   document.getElementById('surpName').textContent=['Serving looks ✨','This one\'s cute 👀','Chef\'s kiss 🤌','Main character fit 💅','Soft girl era 🎀'][Math.floor(Math.random()*5)];
