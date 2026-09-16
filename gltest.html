@@ -899,13 +899,14 @@ async function buildMesh3D(src){
   const pw=ar>=1?MD:MD*ar,ph=ar>=1?MD/ar:MD;
   const geo=new T.PlaneGeometry(pw,ph,110,110);
   const pos=geo.attributes.position,uv=geo.attributes.uv;
-  for(let i=0;i<pos.count;i++)pos.setZ(i,df.sample(uv.getX(i),uv.getY(i))*.55*MD);
+  for(let i=0;i<pos.count;i++)pos.setZ(i,df.sample(uv.getX(i),uv.getY(i))*.13*MD);
   geo.computeVertexNormals();
-  const tex=new T.Texture(im);tex.needsUpdate=true;tex.colorSpace=T.SRGBColorSpace;
+  const tex=new T.Texture(im);tex.needsUpdate=true;tex.colorSpace=T.SRGBColorSpace;tex.anisotropy=8;
   const mat=new T.MeshStandardMaterial({map:tex,alphaTest:.5,side:T.DoubleSide,roughness:.62,metalness:.08});
   const mesh=new T.Mesh(geo,mat);
+  const back=new T.Mesh(geo,mat);back.scale.z=-1;
   const s3=new T.Scene();
-  const group=new T.Group();group.add(mesh);s3.add(group);
+  const group=new T.Group();group.add(mesh);group.add(back);s3.add(group);
   s3.add(new T.AmbientLight(0xffffff,1.7));
   const dl=new T.DirectionalLight(0xffffff,2.2);dl.position.set(2,2.6,3.2);s3.add(dl);
   const rim=new T.DirectionalLight(0x8fdcff,.9);rim.position.set(-2.5,-1,-2);s3.add(rim);
@@ -916,6 +917,7 @@ async function buildMesh3D(src){
   r.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
   r.setSize(Math.max(1,rect.width),Math.max(1,rect.height));
   const can=r.domElement;can.id='dGL';
+  can.addEventListener('pointerdown',tiltStart);
   scene.insertBefore(can,scene.firstChild);
   m3d={T,s3,cam,r,group,mesh,raf:0,resize(){
     const rc=scene.getBoundingClientRect();
@@ -1080,46 +1082,62 @@ function saveLook(){
 
 // ============ BOOT ============
 window.addEventListener('load',()=>{
-  const b=document.createElement('button');b.textContent='GL TEST';b.id='glTestBtn';
+  const b=document.createElement('button');b.textContent='GL TEST 2';b.id='glTestBtn';
   b.style.cssText='position:fixed;top:70px;right:10px;z-index:9999;padding:12px 16px;background:#000;color:#fff;font-weight:700;border-radius:10px;border:none';
   b.onclick=async()=>{
     let out=document.getElementById('glOut');
-    if(!out){out=document.createElement('div');out.id='glOut';out.style.cssText='position:fixed;top:130px;right:10px;z-index:9999;background:#fff;color:#000;padding:10px;max-width:280px;font-size:11px;border-radius:10px;border:2px solid #000;white-space:pre-wrap';document.body.appendChild(out)}
-    const R=[];
+    if(!out){out=document.createElement('div');out.id='glOut';out.style.cssText='position:fixed;top:130px;right:10px;z-index:9999;background:#fff;color:#000;padding:10px;max-width:300px;font-size:11px;border-radius:10px;border:2px solid #000;white-space:pre-wrap';document.body.appendChild(out)}
+    const R=[];const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+    const sampleGL=()=>{
+      const glc=document.getElementById('dGL');if(!glc)return null;
+      const sc=document.createElement('canvas');sc.width=64;sc.height=64;
+      const scx=sc.getContext('2d');scx.drawImage(glc,0,0,64,64);
+      const pd=scx.getImageData(0,0,64,64).data;
+      let op=0,cr=0,cg=0,cb=0;
+      for(let i=0;i<pd.length;i+=4){if(pd[i+3]>100){op++;cr+=pd[i];cg+=pd[i+1];cb+=pd[i+2]}}
+      return {op,rgb:op?((cr/op)|0)+','+((cg/op)|0)+','+((cb/op)|0):'-'};
+    };
     try{
       const jr=await (await fetch('https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch='+encodeURIComponent('traditional sari dress fashion')+'&gsrlimit=8&prop=imageinfo&iiprop=url&iiurlwidth=640&format=json&origin=*')).json();
       const ps=Object.values(jr.query.pages).filter(p=>p.imageinfo&&/\.(jpe?g|png)(\?|$)/i.test(p.imageinfo[0].url.split('?')[0]));
       const im2=await new Promise((res,rej)=>{const m=new Image();m.crossOrigin='anonymous';m.onload=()=>res(m);m.onerror=rej;m.src=ps[1].imageinfo[0].thumburl});
       const pc=document.createElement('canvas');pc.width=im2.naturalWidth;pc.height=im2.naturalHeight;
       pc.getContext('2d').drawImage(im2,0,0);
-      const it={id:'gltest1',name:'Mesh sari',category:'bengali',colors:[],photo:pc.toDataURL('image/jpeg',0.9),created:Date.now()};
+      const it={id:'gltest'+Date.now(),name:'Mesh sari',category:'bengali',colors:[],photo:pc.toDataURL('image/jpeg',0.9),created:Date.now()};
       const co=await makeCutout(it.photo);
-      R.push('cutout: '+(co?'OK ('+co.length+')':'NONE'));
+      R.push('cutout: '+(co?'OK':'NONE'));
       if(co)it.cutout=co;
       await put('items',it);items.push(it);renderCloset();updateStats();
       openDetail(it.id);
       await toggle3D();
-      await new Promise(r=>setTimeout(r,2500));
-      const scene=document.getElementById('dScene');
-      R.push('THREE loaded: '+(!!window.THREE));
-      R.push('canvas #dGL: '+(!!document.getElementById('dGL')));
-      R.push('scene classes: '+scene.className);
-      R.push('mesh verts: '+(m3d?m3d.mesh.geometry.attributes.position.count:'NO M3D'));
-      const y1=m3d?m3d.group.rotation.y:0,ry1=tiltCur.ry;
-      await new Promise(r=>setTimeout(r,1200));
-      R.push('spin: rotY '+y1.toFixed(1)+' -> '+(m3d?m3d.group.rotation.y:0).toFixed(1)+' rad | tiltCur.ry '+ry1.toFixed(1)+' -> '+tiltCur.ry.toFixed(1));
-      cancelTiltAnim();setTilt(-6,15);
-      await new Promise(r=>setTimeout(r,400));
-      const glc=document.getElementById('dGL');
-      const sc=document.createElement('canvas');sc.width=64;sc.height=64;
-      const scx=sc.getContext('2d');scx.drawImage(glc,0,0,64,64);
-      const pd=scx.getImageData(0,0,64,64).data;
-      let op=0,cr=0,cg=0,cb=0;
-      for(let i=0;i<pd.length;i+=4){if(pd[i+3]>100){op++;cr+=pd[i];cg+=pd[i+1];cb+=pd[i+2]}}
-      R.push('render: '+op+'/4096 opaque px, avg RGB '+(op?((cr/op)|0)+','+((cg/op)|0)+','+((cb/op)|0):'-'));
-      R.push('depth bulge: max z '+(m3d?Math.max(...new Array(20).fill(0).map(()=>{const i=Math.floor(Math.random()*m3d.mesh.geometry.attributes.position.count);return m3d.mesh.geometry.attributes.position.getZ(i)})):'-').toFixed(3));
-      const ok=window.THREE&&document.getElementById('dGL')&&m3d&&m3d.group.rotation.y!==y1;
-      R.push('PASS: '+(ok?'YES':'NO'));
+      await sleep(2500);
+      R.push('mesh: '+(m3d?'verts '+m3d.mesh.geometry.attributes.position.count+', shells '+m3d.group.children.length:'NO'));
+      R.push('depth: max z '+Math.max.apply(null,new Array(40).fill(0).map(()=>{const i=Math.floor(Math.random()*m3d.mesh.geometry.attributes.position.count);return m3d.mesh.geometry.attributes.position.getZ(i)})).toFixed(3));
+      // per-angle render sampling
+      cancelTiltAnim();
+      const angles=[0,30,60,90,120,150,180];
+      for(const a of angles){
+        tiltCur.rx=-6;tiltCur.ry=a;
+        await sleep(350);
+        const s=sampleGL();
+        R.push('ry'+a+': '+s.op+'/4096 px, RGB '+s.rgb);
+      }
+      // drag physics test
+      tiltCur.rx=-6;tiltCur.ry=0;await sleep(300);
+      const c=document.getElementById('dGL');
+      c.dispatchEvent(new PointerEvent('pointerdown',{clientX:200,clientY:200}));
+      await sleep(80);
+      for(let k=1;k<=8;k++){window.dispatchEvent(new PointerEvent('pointermove',{clientX:200-k*14,clientY:200}));await sleep(30)}
+      const ryDrag=tiltCur.ry;
+      window.dispatchEvent(new PointerEvent('pointerup',{clientX:88,clientY:200}));
+      await sleep(500);
+      const ryMom=tiltCur.ry;
+      await sleep(1200);
+      const rySpin=tiltCur.ry;
+      R.push('drag: 0 -> '+ryDrag.toFixed(1)+'deg | after release: '+ryMom.toFixed(1)+' | 1.2s later: '+rySpin.toFixed(1));
+      const pass=m3d&&m3d.group.children.length===2&&ryDrag<-50&&rySpin>ryMom;
+      R.push('PASS: '+(pass?'YES':'NO'));
+      tiltCur.rx=-6;tiltCur.ry=15; // face-on freeze for screenshot
       out.textContent=R.join('\n');
     }catch(e){out.textContent='ERR: '+e.message+'\n'+R.join('\n')}
   };
