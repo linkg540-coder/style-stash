@@ -1108,6 +1108,15 @@ window.addEventListener('load',()=>{
       const y1=m3d?m3d.group.rotation.y:0,ry1=tiltCur.ry;
       await new Promise(r=>setTimeout(r,1200));
       R.push('spin: rotY '+y1.toFixed(1)+' -> '+(m3d?m3d.group.rotation.y:0).toFixed(1)+' rad | tiltCur.ry '+ry1.toFixed(1)+' -> '+tiltCur.ry.toFixed(1));
+      cancelTiltAnim();setTilt(-6,15);
+      await new Promise(r=>setTimeout(r,400));
+      const glc=document.getElementById('dGL');
+      const sc=document.createElement('canvas');sc.width=64;sc.height=64;
+      const scx=sc.getContext('2d');scx.drawImage(glc,0,0,64,64);
+      const pd=scx.getImageData(0,0,64,64).data;
+      let op=0,cr=0,cg=0,cb=0;
+      for(let i=0;i<pd.length;i+=4){if(pd[i+3]>100){op++;cr+=pd[i];cg+=pd[i+1];cb+=pd[i+2]}}
+      R.push('render: '+op+'/4096 opaque px, avg RGB '+(op?((cr/op)|0)+','+((cg/op)|0)+','+((cb/op)|0):'-'));
       R.push('depth bulge: max z '+(m3d?Math.max(...new Array(20).fill(0).map(()=>{const i=Math.floor(Math.random()*m3d.mesh.geometry.attributes.position.count);return m3d.mesh.geometry.attributes.position.getZ(i)})):'-').toFixed(3));
       const ok=window.THREE&&document.getElementById('dGL')&&m3d&&m3d.group.rotation.y!==y1;
       R.push('PASS: '+(ok?'YES':'NO'));
