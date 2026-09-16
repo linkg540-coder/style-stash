@@ -916,6 +916,7 @@ async function buildMesh3D(src){
   r.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
   r.setSize(Math.max(1,rect.width),Math.max(1,rect.height));
   const can=r.domElement;can.id='dGL';
+  can.addEventListener('pointerdown',tiltStart);
   scene.insertBefore(can,scene.firstChild);
   m3d={T,s3,cam,r,group,mesh,raf:0,resize(){
     const rc=scene.getBoundingClientRect();
