@@ -913,7 +913,7 @@ async function buildMesh3D(src){
   const rect=scene.getBoundingClientRect();
   const cam=new T.PerspectiveCamera(38,Math.max(.1,rect.width/Math.max(1,rect.height)),.1,50);
   cam.position.set(0,.15,4.4);
-  const r=new T.WebGLRenderer({antialias:true,alpha:true});
+  const r=new T.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
   r.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
   r.setSize(Math.max(1,rect.width),Math.max(1,rect.height));
   const can=r.domElement;can.id='dGL';
