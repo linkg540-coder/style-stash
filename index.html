@@ -907,8 +907,8 @@ async function buildMesh3D(src){
   const back=new T.Mesh(geo,mat);back.scale.z=-1;
   const s3=new T.Scene();
   const group=new T.Group();group.add(mesh);group.add(back);s3.add(group);
-  s3.add(new T.AmbientLight(0xffffff,1.7));
-  const dl=new T.DirectionalLight(0xffffff,2.2);dl.position.set(2,2.6,3.2);s3.add(dl);
+  s3.add(new T.AmbientLight(0xffffff,1.0));
+  const dl=new T.DirectionalLight(0xffffff,2.6);dl.position.set(2,2.6,3.2);s3.add(dl);
   const rim=new T.DirectionalLight(0x8fdcff,.9);rim.position.set(-2.5,-1,-2);s3.add(rim);
   const rect=scene.getBoundingClientRect();
   const cam=new T.PerspectiveCamera(38,Math.max(.1,rect.width/Math.max(1,rect.height)),.1,50);
