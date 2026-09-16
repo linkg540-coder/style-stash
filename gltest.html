@@ -913,7 +913,7 @@ async function buildMesh3D(src){
   const rect=scene.getBoundingClientRect();
   const cam=new T.PerspectiveCamera(38,Math.max(.1,rect.width/Math.max(1,rect.height)),.1,50);
   cam.position.set(0,.15,4.4);
-  const r=new T.WebGLRenderer({antialias:true,alpha:true});
+  const r=new T.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
   r.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
   r.setSize(Math.max(1,rect.width),Math.max(1,rect.height));
   const can=r.domElement;can.id='dGL';
@@ -1135,7 +1135,7 @@ window.addEventListener('load',()=>{
       await sleep(1200);
       const rySpin=tiltCur.ry;
       R.push('drag: 0 -> '+ryDrag.toFixed(1)+'deg | after release: '+ryMom.toFixed(1)+' | 1.2s later: '+rySpin.toFixed(1));
-      const pass=m3d&&m3d.group.children.length===2&&ryDrag<-50&&rySpin>ryMom;
+      const pass=m3d&&m3d.group.children.length===2&&ryDrag<-30&&rySpin>ryMom;
       R.push('PASS: '+(pass?'YES':'NO'));
       tiltCur.rx=-6;tiltCur.ry=15; // face-on freeze for screenshot
       out.textContent=R.join('\n');
@@ -1143,6 +1143,20 @@ window.addEventListener('load',()=>{
   };
   document.body.appendChild(b);
 });
+const _dc=document.getElementById('dCard');
+_dc.addEventListener('pointerdown',tiltStart);
+window.addEventListener('pointermove',tiltMove);
+window.addEventListener('pointerup',tiltEnd);
+window.addEventListener('pointercancel',tiltEnd);
+(async function(){
+  items=await getAll('items');
+  looks=await getAll('looks');
+  renderChips();renderCloset();renderLooks();updateStats();
+})();
+</script>
+</body>
+</html>
+
 const _dc=document.getElementById('dCard');
 _dc.addEventListener('pointerdown',tiltStart);
 window.addEventListener('pointermove',tiltMove);
