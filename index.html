@@ -899,9 +899,9 @@ async function buildMesh3D(src){
   const pw=ar>=1?MD:MD*ar,ph=ar>=1?MD/ar:MD;
   const geo=new T.PlaneGeometry(pw,ph,110,110);
   const pos=geo.attributes.position,uv=geo.attributes.uv;
-  for(let i=0;i<pos.count;i++)pos.setZ(i,df.sample(uv.getX(i),uv.getY(i))*.55*MD);
+  for(let i=0;i<pos.count;i++)pos.setZ(i,df.sample(uv.getX(i),uv.getY(i))*.13*MD);
   geo.computeVertexNormals();
-  const tex=new T.Texture(im);tex.needsUpdate=true;tex.colorSpace=T.SRGBColorSpace;
+  const tex=new T.Texture(im);tex.needsUpdate=true;tex.colorSpace=T.SRGBColorSpace;tex.anisotropy=8;
   const mat=new T.MeshStandardMaterial({map:tex,alphaTest:.5,side:T.DoubleSide,roughness:.62,metalness:.08});
   const mesh=new T.Mesh(geo,mat);
   const s3=new T.Scene();
