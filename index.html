@@ -141,6 +141,10 @@ input.txt:focus{outline:none;border-color:var(--pink)}
 .d-card.cut>img{filter:drop-shadow(0 0 12px rgba(90,225,255,.4)) drop-shadow(0 0 32px rgba(90,225,255,.18))}
 .d-scan{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(to bottom,rgba(130,235,255,0) 0 3px,rgba(130,235,255,.13) 3px 4.5px);animation:d-scan 3s linear infinite;opacity:.85}
 @keyframes d-scan{to{background-position:0 67.5px}}
+.d-scene{position:relative}
+.d-scene.mesh{height:min(58vh,400px)}
+.d-scene.mesh .d-card,.d-scene.mesh .d-shadow,.d-scene.mesh .d-scan{display:none}
+#dGL{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
 .d-holo{display:none}
 .d-scene.holo.on .d-holo{display:block;position:relative;height:56px;margin:-18px auto 0;width:76%;max-width:320px;pointer-events:none}
 .d-holo i{position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(90,225,255,.55);animation:d-pulse 2.8s ease-in-out infinite}
@@ -779,6 +783,7 @@ function setTilt(rx,ry){
   tiltCur.rx=Math.max(-80,Math.min(80,rx));tiltCur.ry=ry;
   if(!tiltRaf)tiltRaf=requestAnimationFrame(()=>{
     tiltRaf=null;
+    if(document.getElementById('dGL'))return;
     const c=document.getElementById('dCard'); if(!c)return;
     const rn=((tiltCur.ry%360)+540)%360-180;
     c.style.transform='rotateX('+tiltCur.rx+'deg) rotateY('+tiltCur.ry+'deg)';
@@ -833,11 +838,118 @@ function startHoloSpin(){
   };
   tiltAnim=requestAnimationFrame(step);
 }
+// ===== REAL 3D MESH (Three.js) =====
+let m3d=null;
+function ensureThree(){
+  if(window.THREE)return Promise.resolve(true);
+  return new Promise((res)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js';
+    s.onload=()=>res(true);s.onerror=()=>res(false);
+    document.head.appendChild(s);
+  });
+}
+function depthField(W,H,px){
+  const G=96,gw=G,gh=G;
+  const d=new Float32Array(gw*gh),q=[];
+  for(let y=0;y<gh;y++)for(let x=0;x<gw;x++){
+    const a=px[((Math.floor(y*(H-1)/(gh-1))*W)+Math.floor(x*(W-1)/(gw-1)))*4+3];
+    const c=y*gw+x;
+    if(a>=128){d[c]=-1}else{d[c]=0;q.push(c)}
+  }
+  let head=0;
+  while(head<q.length){
+    const c=q[head++],cx=c%gw,cy=(c-cx)/gw,v=d[c];
+    if(cx+1<gw&&d[c+1]===-1){d[c+1]=v+1;q.push(c+1)}
+    if(cx>0&&d[c-1]===-1){d[c-1]=v+1;q.push(c-1)}
+    if(cy+1<gh&&d[c+gw]===-1){d[c+gw]=v+1;q.push(c+gw)}
+    if(cy>0&&d[c-gw]===-1){d[c-gw]=v+1;q.push(c-gw)}
+  }
+  for(let p=0;p<2;p++){
+    const t=new Float32Array(d);
+    for(let y=1;y<gh-1;y++)for(let x=1;x<gw-1;x++){
+      const c=y*gw+x;t[c]=(d[c]*4+d[c-1]+d[c+1]+d[c-gw]+d[c+gw])/8;
+    }
+    d.set(t);
+  }
+  let mx=0;
+  for(let i=0;i<d.length;i++){if(d[i]<0)d[i]=0;if(d[i]>mx)mx=d[i]}
+  if(mx>0)for(let i=0;i<d.length;i++)d[i]=Math.pow(d[i]/mx,.65);
+  return {sample(u,v){
+    const fx=u*(gw-1),fy=(1-v)*(gh-1);
+    const x0=Math.max(0,Math.min(gw-2,Math.floor(fx))),y0=Math.max(0,Math.min(gh-2,Math.floor(fy)));
+    const tx=fx-x0,ty=fy-y0,a=d[y0*gw+x0],b=d[y0*gw+x0+1],c2=d[(y0+1)*gw+x0],e=d[(y0+1)*gw+x0+1];
+    return (a*(1-tx)+b*tx)*(1-ty)+(c2*(1-tx)+e*tx)*ty;
+  }};
+}
+async function buildMesh3D(src){
+  stopMesh();
+  const scene=document.getElementById('dScene');
+  const ok=await ensureThree();
+  if(!ok)return false;
+  const T=window.THREE;
+  const im=await new Promise((res,rej)=>{const i2=new Image();i2.crossOrigin='anonymous';i2.onload=()=>res(i2);i2.onerror=rej;i2.src=src});
+  const W=im.naturalWidth,H=im.naturalHeight;
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  const cx=cv.getContext('2d',{willReadFrequently:true});cx.drawImage(im,0,0);
+  const px=cx.getImageData(0,0,W,H).px||cx.getImageData(0,0,W,H).data;
+  const df=depthField(W,H,px);
+  scene.classList.add('mesh');
+  const ar=W/H,MD=2;
+  const pw=ar>=1?MD:MD*ar,ph=ar>=1?MD/ar:MD;
+  const geo=new T.PlaneGeometry(pw,ph,110,110);
+  const pos=geo.attributes.position,uv=geo.attributes.uv;
+  for(let i=0;i<pos.count;i++)pos.setZ(i,df.sample(uv.getX(i),uv.getY(i))*.55*MD);
+  geo.computeVertexNormals();
+  const tex=new T.Texture(im);tex.needsUpdate=true;tex.colorSpace=T.SRGBColorSpace;
+  const mat=new T.MeshStandardMaterial({map:tex,alphaTest:.5,side:T.DoubleSide,roughness:.62,metalness:.08});
+  const mesh=new T.Mesh(geo,mat);
+  const s3=new T.Scene();
+  const group=new T.Group();group.add(mesh);s3.add(group);
+  s3.add(new T.AmbientLight(0xffffff,1.7));
+  const dl=new T.DirectionalLight(0xffffff,2.2);dl.position.set(2,2.6,3.2);s3.add(dl);
+  const rim=new T.DirectionalLight(0x8fdcff,.9);rim.position.set(-2.5,-1,-2);s3.add(rim);
+  const rect=scene.getBoundingClientRect();
+  const cam=new T.PerspectiveCamera(38,Math.max(.1,rect.width/Math.max(1,rect.height)),.1,50);
+  cam.position.set(0,.15,4.4);
+  const r=new T.WebGLRenderer({antialias:true,alpha:true});
+  r.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+  r.setSize(Math.max(1,rect.width),Math.max(1,rect.height));
+  const can=r.domElement;can.id='dGL';
+  scene.insertBefore(can,scene.firstChild);
+  m3d={T,s3,cam,r,group,mesh,raf:0,resize(){
+    const rc=scene.getBoundingClientRect();
+    if(rc.width<2)return;
+    r.setSize(rc.width,rc.height);
+    cam.aspect=rc.width/Math.max(1,rc.height);cam.updateProjectionMatrix();
+  }};
+  m3d.onRes=()=>m3d&&m3d.resize();
+  window.addEventListener('resize',m3d.onRes);
+  const DEG=Math.PI/180;
+  const loop=()=>{
+    if(!m3d)return;
+    group.rotation.x=tiltCur.rx*DEG;
+    group.rotation.y=tiltCur.ry*DEG;
+    r.render(s3,cam);
+    m3d.raf=requestAnimationFrame(loop);
+  };
+  m3d.raf=requestAnimationFrame(loop);
+  return true;
+}
+function stopMesh(){
+  if(!m3d)return;
+  cancelAnimationFrame(m3d.raf);
+  window.removeEventListener('resize',m3d.onRes);
+  try{m3d.mesh.geometry.dispose();m3d.mesh.material.map&&m3d.mesh.material.map.dispose();m3d.mesh.material.dispose();m3d.r.dispose()}catch(e){}
+  const can=document.getElementById('dGL');if(can)can.remove();
+  document.getElementById('dScene').classList.remove('mesh');
+  m3d=null;
+}
 async function toggle3D(){
   const scene=document.getElementById('dScene');
   const on=scene.classList.toggle('on');
   document.getElementById('dImg').style.display=on?'none':'';
-  if(!on){cancelTiltAnim();return}
+  if(!on){cancelTiltAnim();stopMesh();return}
   const i=items.find(x=>x.id===detailId);
   if(!i){build3DLayers(null);setTilt(-6,8);return}
   if(i.cutout){build3DLayers(i.cutout);setTilt(-6,8);startHoloSpin();return}
@@ -853,13 +965,15 @@ async function toggle3D(){
   setTilt(-6,8);
   if(co)startHoloSpin();
 }
-function build3DLayers(cut){
+async function build3DLayers(cut){
+  const scene=document.getElementById('dScene');
+  scene.classList.toggle('holo',!!cut);
+  if(cut){if(await buildMesh3D(cut))return;scene.classList.remove('mesh')}
   const card=document.getElementById('dCard');
   const i=items.find(x=>x.id===detailId)||{};
   const src=cut||i.photo;
   if(!src){card.classList.remove('cut');return}
   card.classList.toggle('cut',!!cut);
-  document.getElementById('dScene').classList.toggle('holo',!!cut);
   card.style.aspectRatio='auto';
   let h2='<img src="'+src+'" alt="">';
   if(cut){
@@ -902,6 +1016,7 @@ function openDetail(id){
 function closeDetail(){
   document.getElementById('detailModal').classList.remove('open');
   document.getElementById('dScene').classList.remove('on');
+  cancelTiltAnim();stopMesh();
   document.getElementById('dImg').style.display='';
 }
 function deleteFromDetail(){
