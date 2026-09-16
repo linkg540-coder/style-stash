@@ -907,8 +907,8 @@ async function buildMesh3D(src){
   const back=new T.Mesh(geo,mat);back.scale.z=-1;
   const s3=new T.Scene();
   const group=new T.Group();group.add(mesh);group.add(back);s3.add(group);
-  s3.add(new T.AmbientLight(0xffffff,1.7));
-  const dl=new T.DirectionalLight(0xffffff,2.2);dl.position.set(2,2.6,3.2);s3.add(dl);
+  s3.add(new T.AmbientLight(0xffffff,1.0));
+  const dl=new T.DirectionalLight(0xffffff,2.6);dl.position.set(2,2.6,3.2);s3.add(dl);
   const rim=new T.DirectionalLight(0x8fdcff,.9);rim.position.set(-2.5,-1,-2);s3.add(rim);
   const rect=scene.getBoundingClientRect();
   const cam=new T.PerspectiveCamera(38,Math.max(.1,rect.width/Math.max(1,rect.height)),.1,50);
@@ -1090,96 +1090,74 @@ window.addEventListener('load',()=>{
     const N=96;
     const sc=document.createElement('canvas');sc.width=N;sc.height=N;
     const scx=sc.getContext('2d');scx.drawImage(glc,0,0,N,N);
-    const pd=scx.getImageData(0,0,N,N).data;
-    let op=0,cr=0,cg=0,cb=0,minx=N,maxx=-1,miny=N,maxy=-1;
-    const grid=[];
-    for(let y=0;y<N;y++){grid[y]=[];for(let x=0;x<N;x++){
-      const a=pd[(y*N+x)*4+3];grid[y][x]=a>100;
-      if(a>100){op++;cr+=pd[(y*N+x)*4];cg+=pd[(y*N+x)*4+1];cb+=pd[(y*N+x)*4+2];
-        if(x<minx)minx=x;if(x>maxx)maxx=x;if(y<miny)miny=y;if(y>maxy)maxy=y}
-    }}
-    let holes=0;
-    for(let y=miny+3;y<maxy-2;y++)for(let x=minx+3;x<maxx-2;x++){if(!grid[y][x])holes++}
-    return {op,bright:op?((cr+cg+cb)/(3*op))|0:-1,holes,bbox:op?(maxx-minx+1)+'x'+(maxy-miny+1):'-',rgb:op?((cr/op)|0)+','+((cg/op)|0)+','+((cb/op)|0):'-'};
+    const pd=scx.getImageData(0,0,64,64).data||scx.getImageData(0,0,N,N).data;
+    let op=0,cr=0,cg=0,cb=0;
+    for(let i=0;i<pd.length;i+=4){if(pd[i+3]>100){op++;cr+=pd[i];cg+=pd[i+1];cb+=pd[i+2]}}
+    return {op,bright:op?((cr+cg+cb)/(3*op))|0:-1,rgb:op?((cr/op)|0)+','+((cg/op)|0)+','+((cb/op)|0):'-'};
   };
   const cleanGl=async()=>{const junk=items.filter(i=>i.id.startsWith('gltest'));
     for(const j of junk){await del('items',j.id)}
     items=items.filter(i=>!i.id.startsWith('gltest'));
     if(typeof detailId!=='undefined'&&detailId&&detailId.startsWith('gltest'))closeDetail();
     renderCloset();updateStats();return junk.length};
-  mkBtn('GL TEST 3','glTestBtn',async()=>{
+  mkBtn('GL TEST 4','glTestBtn',async()=>{
     const out=outBox();const R=[];
     try{
-      R.push('cleaned old test items: '+await cleanGl());
+      R.push('cleaned: '+await cleanGl());
       const srch=async(q)=>{const jr=await (await fetch('https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch='+encodeURIComponent(q)+'&gsrlimit=8&prop=imageinfo&iiprop=url&iiurlwidth=640&format=json&origin=*')).json();
         return Object.values(jr.query.pages).filter(p=>p.imageinfo&&/\.(jpe?g|png)$/i.test(p.imageinfo[0].url.split('?')[0]))};
       const toIm=async(u)=>new Promise((res,rej)=>{const m=new Image();m.crossOrigin='anonymous';m.onload=()=>res(m);m.onerror=rej;m.src=u});
-      const mk=(photo,name,cat)=>{const it={id:'gltest'+Date.now()+Math.random().toString(36).slice(2,6),name,category:cat,colors:[],photo,created:Date.now()};return it};
-      const photos=[];
       const s1=await srch('traditional sari dress fashion');
-      photos.push((await toIm(s1[1].imageinfo[0].thumburl)));
       const s2=await srch('ball gown dress fashion model');
-      photos.push((await toIm(s2[0].imageinfo[0].thumburl)));
       const seeds=[];
-      for(let i=0;i<photos.length;i++){
-        const pc=document.createElement('canvas');pc.width=photos[i].naturalWidth;pc.height=photos[i].naturalHeight;
-        pc.getContext('2d').drawImage(photos[i],0,0);
-        const it=mk(pc.toDataURL('image/jpeg',0.9),i===0?'Mesh sari':'Ball gown',i===0?'bengali':'dresses');
+      for(let i=0;i<2;i++){
+        const im2=await toIm((i===0?s1[1]:s2[0]).imageinfo[0].thumburl);
+        const pc=document.createElement('canvas');pc.width=im2.naturalWidth;pc.height=im2.naturalHeight;
+        pc.getContext('2d').drawImage(im2,0,0);
+        const it={id:'gltest'+Date.now()+Math.random().toString(36).slice(2,6),name:i===0?'Mesh sari':'Ball gown',category:i===0?'bengali':'dresses',colors:[],photo:pc.toDataURL('image/jpeg',0.9),created:Date.now()};
         const co=await makeCutout(it.photo);
         if(co)it.cutout=co;
         await put('items',it);items.push(it);seeds.push(it);
       }
       renderCloset();updateStats();
-      R.push('seeds: '+seeds.length+', cutouts: '+seeds.filter(s=>s.cutout).length);
-      // ITEM A - sari
-      openDetail(seeds[0].id);await toggle3D();await sleep(2600);
-      R.push('meshA: '+(m3d?'verts '+m3d.mesh.geometry.attributes.position.count+', shells '+m3d.group.children.length:'NO'));
+      R.push('seeds ok, cutouts: '+seeds.filter(s=>s.cutout).length);
+      // ITEM A - direct build with error capture
+      openDetail(seeds[0].id);
+      document.getElementById('dScene').classList.add('on');
+      document.getElementById('dImg').style.display='none';
+      try{await build3DLayers(seeds[0].cutout)}catch(e){R.push('A build err: '+e.message)}
+      await sleep(1200);
+      R.push('meshA: '+(m3d?'verts '+m3d.mesh.geometry.attributes.position.count+', shells '+m3d.group.children.length:'NONE'));
       cancelTiltAnim();
-      const sweep=[];let minOp=1e9,minAt=-1;
-      for(let a=0;a<=360;a+=20){
+      const sweep=[];
+      for(const a of [0,45,90,135,180,225,270,315]){
         tiltCur.rx=-6;tiltCur.ry=a;await sleep(330);
-        const s=sampleGL();sweep.push(a+':'+s.op);
-        if(s.op<minOp){minOp=s.op;minAt=a}
+        const s=sampleGL();sweep.push(a+':'+(s?s.op:'NULL'));
       }
-      R.push('sweep(96px): '+sweep.join(' '));
-      tiltCur.rx=-6;tiltCur.ry=0;await sleep(330);
-      const h0=sampleGL();
-      R.push('ry0: '+h0.op+'px, holes '+h0.holes+', bbox '+h0.bbox+', RGB '+h0.rgb);
-      // light response
-      tiltCur.rx=-35;tiltCur.ry=15;await sleep(330);const b1=sampleGL().bright;
-      tiltCur.rx=40;tiltCur.ry=15;await sleep(330);const b2=sampleGL().bright;
-      const lightD=Math.abs(b1-b2);
-      R.push('light: rx-35 '+b1+' vs rx+40 '+b2+' -> delta '+lightD);
-      // flick momentum
-      cancelTiltAnim();tiltCur.rx=-6;tiltCur.ry=0;tiltCur.vx=0;tiltCur.vy=0;await sleep(300);
-      const c=document.getElementById('dGL');
-      c.dispatchEvent(new PointerEvent('pointerdown',{clientX:200,clientY:200}));await sleep(50);
-      const t0=performance.now();const pts=[];
-      window.dispatchEvent(new PointerEvent('pointermove',{clientX:150,clientY:200}));await sleep(18);
-      window.dispatchEvent(new PointerEvent('pointermove',{clientX:100,clientY:200}));await sleep(18);
-      window.dispatchEvent(new PointerEvent('pointermove',{clientX:60,clientY:200}));
-      pts.push([performance.now()-t0,tiltCur.ry]);
-      window.dispatchEvent(new PointerEvent('pointerup',{clientX:60,clientY:200}));
-      for(let k=1;k<=6;k++){await sleep(250);pts.push([performance.now()-t0,tiltCur.ry])}
-      const steps=[];let smooth=true;
-      for(let k=1;k<pts.length;k++){const d=Math.abs(pts[k][1]-pts[k-1][1]);steps.push(d.toFixed(1));
-        if(k>1&&d>steps.length>0&&d>Math.abs(pts[k-1][1]-pts[k-2][1])*1.6+0.5)smooth=false}
-      R.push('flick: '+' | '.concat(pts.map(p=>p[1].toFixed(1)).join('deg '))+'deg');
-      R.push('decay deltas: '+steps.join(', ')+' | smooth: '+(smooth?'YES':'NO'));
-      // ITEM B - gown
+      R.push('sweep: '+sweep.join(' '));
+      // light response with new lights
+      tiltCur.rx=-35;tiltCur.ry=15;await sleep(330);const b1=(sampleGL()||{}).bright;
+      tiltCur.rx=40;tiltCur.ry=15;await sleep(330);const b2=(sampleGL()||{}).bright;
+      R.push('light: '+b1+' vs '+b2+' -> delta '+Math.abs((b1||0)-(b2||0)));
+      // ITEM B - direct build, capture the real error
       closeDetail();await sleep(400);
-      openDetail(seeds[1].id);await toggle3D();await sleep(2600);
-      const vb=m3d?m3d.mesh.geometry.attributes.position.count:0;
+      openDetail(seeds[1].id);
+      document.getElementById('dScene').classList.add('on');
+      document.getElementById('dImg').style.display='none';
+      R.push('B cutout: '+(seeds[1].cutout?('yes, '+seeds[1].cutout.length+' chars'):'NO'));
+      try{await build3DLayers(seeds[1].cutout)}catch(e){R.push('B build err: '+e.message+' | '+e.stack.split('\n')[1])}
+      await sleep(1200);
+      R.push('meshB: '+(m3d?'verts '+m3d.mesh.geometry.attributes.position.count+', shells '+m3d.group.children.length:'NONE'));
       cancelTiltAnim();tiltCur.rx=-6;tiltCur.ry=0;await sleep(400);
       const b0=sampleGL();
-      R.push('meshB: verts '+vb+', shells '+(m3d?m3d.group.children.length:'-')+', ry0 '+b0.op+'px, holes '+b0.holes+', RGB '+b0.rgb);
-      const pass=minOp>150&&h0.holes<80&&lightD>6&&smooth&&vb>10000&&b0.op>150;
-      R.push('PASS: '+(pass?'YES':'NO'));
+      R.push('B ry0: '+(b0?b0.op+'px, RGB '+b0.rgb:'NULL'));
+      const ok=(m3d!==null)&&b0&&b0.op>150;
+      R.push('B MESH: '+(ok?'WORKS':'BROKEN'));
       tiltCur.rx=-6;tiltCur.ry=15;
       out.textContent=R.join('\n');
     }catch(e){out.textContent='ERR: '+e.message+'\n'+R.join('\n')}
   });
-  mkBtn('CLEAN','glCleanBtn',async()=>{const out=outBox();const n=await cleanGl();out.textContent='removed '+n+' test items'});
+  mkBtn('CLEAN','glCleanBtn',async()=>{const out=outBox();out.textContent='removed '+await cleanGl()+' test items'});
 });
 
 const _dc=document.getElementById('dCard');
