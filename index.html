@@ -1263,20 +1263,24 @@ function renderCal(){
   document.getElementById('calGrid').innerHTML=h;
   getWeather();
 }
-function openDay(key){
+function openDay(key,keep){
   dayDate=key;
   const r=calRec(key);
-  daySel=new Set(r&&r.itemIds||[]);dayLook=r&&r.lookId||null;dayNote=r&&r.note||'';
+  if(!keep){daySel=new Set(r&&r.itemIds||[]);dayLook=r&&r.lookId||null;dayNote=r&&r.note||''}
   const future=new Date(key+'T12:00')>new Date();
   document.getElementById('dayTitle').textContent=(future?'📝 Plan ':'📷 Log ')+new Date(key+'T12:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
   let h='';
-  if(looks.length)h+='<div style="font-size:12px;color:#9b7a90;margin-top:6px">pick a saved look:</div><div class="chips2">'+looks.map(l=>'<button class="'+(dayLook===l.id?'on':'')+'" onclick="dayLook=dayLook===\''+l.id+'\'?null:\''+l.id+'\';openDay(\''+key+'\')">'+(l.name||'Look')+'</button>').join('')+'</div>';
+  if(looks.length)h+='<div style="font-size:12px;color:#9b7a90;margin-top:6px">pick a saved look:</div><div class="chips2">'+looks.map(l=>'<button class="'+(dayLook===l.id?'on':'')+'" onclick="dayLook=dayLook===\''+l.id+'\'?null:\''+l.id+'\';openDay(\''+key+'\',true)">'+(l.name||'Look')+'</button>').join('')+'</div>';
   h+='<div style="font-size:12px;color:#9b7a90;margin-top:6px">and/or single items:</div><div class="mini-grid">'+items.map(i=>'<div class="item'+(daySel.has(i.id)?' pick-on':'')+'" onclick="dayPickTog(\''+i.id+'\')"><img src="'+i.photo+'" loading="lazy" alt=""><span class="cat-tag">'+catOf(i.category).ico+'</span></div>').join('')+'</div>';
   h+='<input class="txt" style="width:100%;margin-top:8px;box-sizing:border-box" maxlength="120" placeholder="note: occasion, weather, mood..." value="'+(dayNote||'').replace(/"/g,'&quot;')+'" onchange="dayNote=this.value">';
   document.getElementById('dayBody').innerHTML=h;
   document.getElementById('dayModal').classList.add('open');
 }
-function dayPickTog(id){if(daySel.has(id))daySel.delete(id);else daySel.add(id);openDay(dayDate)}
+function dayPickTog(id){
+  if(daySel.has(id))daySel.delete(id);else daySel.add(id);
+  const nodes=document.querySelectorAll('#dayBody .mini-grid .item');
+  items.forEach((i,ix)=>{if(nodes[ix]&&i.id===id)nodes[ix].classList.toggle('pick-on',daySel.has(id))});
+}
 function closeDay(){document.getElementById('dayModal').classList.remove('open')}
 function saveDay(){
   if(!dayLook&&!daySel.size){clearDay();return}
