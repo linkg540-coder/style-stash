@@ -169,18 +169,58 @@ nav .fab .ico{width:54px;height:54px;background:linear-gradient(135deg,var(--pin
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .surp-stage{position:fixed;inset:0;z-index:55;background:linear-gradient(180deg,#fdf2f8,#f3ecff);display:none;flex-direction:column;max-width:520px;margin:0 auto}
 .surp-stage.open{display:flex}
+/* ===== V3: search, calendar, packing, stats ===== */
+.qbar{width:100%;margin:10px 0 2px;padding:10px 12px;border-radius:12px;border:1px solid #f0d9e6;background:#fff;font-size:14px;box-sizing:border-box}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin:12px 0 8px;gap:6px}
+.cal-head h2{font-size:17px;margin:0}
+.cal-head button{border:1px solid #f0d9e6;background:#fff;border-radius:10px;padding:6px 12px;font-size:15px;cursor:pointer}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal-dow{font-size:10px;color:#b89bb0;text-align:center;margin-bottom:3px}
+.cal-cell{aspect-ratio:1;border-radius:10px;background:#fff;border:1px solid #f3e3ec;position:relative;cursor:pointer;overflow:hidden;background-size:cover;background-position:center}
+.cal-cell.today{border-color:var(--pink);box-shadow:0 0 0 2px #fde2ec}
+.cal-cell .dnum{font-size:10px;position:absolute;top:3px;left:5px;z-index:2;color:#7a5a70}
+.cal-cell .wico{position:absolute;bottom:2px;right:4px;font-size:10px}
+.cal-cell.plan{outline:2px dashed #f4b8d5;outline-offset:-2px}
+.wx-chip{display:inline-flex;gap:5px;align-items:center;background:#fff;border:1px solid #f0d9e6;border-radius:999px;padding:4px 10px;font-size:12px}
+.tool-btn{border:1px solid #f0d9e6;background:#fff;border-radius:999px;padding:7px 12px;font-size:12px;cursor:pointer}
+.pcard{background:#fff;border:1px solid #f3e3ec;border-radius:14px;padding:12px;margin:8px 0;cursor:pointer}
+.pcard h3{font-size:15px;display:flex;justify-content:space-between;align-items:center;margin:0}
+.chk{display:inline-block;width:22px;height:22px;border-radius:7px;border:2px solid #e8c7d8;text-align:center;line-height:19px;font-size:13px;cursor:pointer;flex:none}
+.chk.on{background:var(--pink);color:#fff;border-color:var(--pink)}
+.trip-item{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed #f3e3ec}
+.trip-item img{width:42px;height:52px;object-fit:cover;border-radius:8px;background:#fbe9f1}
+.stat-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.stat-card{background:#fff;border:1px solid #f3e3ec;border-radius:14px;padding:12px}
+.stat-card b{font-size:20px}
+.stat-card small{display:block;color:#b89bb0}
+.bar-row{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:12px}
+.bar-row .lbl2{width:92px;color:#9b7a90;display:flex;align-items:center;gap:4px}
+.bar-row .bar{flex:1;height:9px;border-radius:5px;background:#fbe9f1;overflow:hidden}
+.bar-row .bar i{display:block;height:100%;background:var(--pink)}
+.bar-row b{width:24px;text-align:right}
+.mini-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:280px;overflow:auto;margin-top:6px}
+.mini-grid .item{aspect-ratio:auto}
+.mini-grid .item img{height:70px}
+.mini-grid .item .cat-tag{font-size:9px}
+.pick-on{outline:3px solid var(--pink)}
+.chips2{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 2px}
+.chips2 button{border:1px solid #f0d9e6;background:#fff;border-radius:999px;padding:6px 10px;font-size:12px;cursor:pointer}
+.chips2 button.on{background:var(--pink);color:#fff;border-color:var(--pink)}
+.d-xrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:.6rem}
+.d-xrow input{padding:8px;border:1px solid #f0d9e6;border-radius:9px;font-size:13px;width:100%;box-sizing:border-box}
 </style>
 </head>
 <body>
 <div class="app">
   <header>
     <div><h1>Style<span>Stash</span> ✨</h1><div class="sub">your closet, your rules</div></div>
-    <div class="stats-pill" id="statsPill">0 items · 0 looks</div>
+    <div class="stats-pill" id="statsPill" onclick="go('stats')" style="cursor:pointer" title="📊 your wardrobe stats">0 items · 0 looks</div>
   </div>
 
   <!-- CLOSET VIEW -->
   <section id="view-closet">
     <div class="chips" id="closetChips"></div>
+    <input class="qbar" id="qInput" placeholder="🔍 search name, brand, note, category..." oninput="renderCloset()">
     <div class="toolbar" id="closetTools" style="display:none">
       <button class="tool-btn" id="sortBtn" onclick="cycleSort()">↕ Newest</button>
       <button class="tool-btn" id="bulkBtn" onclick="toggleBulk()">☑ Select</button>
@@ -207,6 +247,39 @@ nav .fab .ico{width:54px;height:54px;background:linear-gradient(135deg,var(--pin
       <h3>No looks saved yet</h3>
       <p>Hit <b>✨ Surprise me</b> for a random outfit from your closet,<br>or build your own look from scratch.</p>
     </div>
+  </section>
+
+  <!-- WEAR CALENDAR VIEW -->
+  <section id="view-cal" style="display:none">
+    <div class="cal-head">
+      <button onclick="calMove(-1)">‹</button>
+      <h2 id="calTitle">—</h2>
+      <span style="display:flex;align-items:center;gap:6px"><span id="wxChip" class="wx-chip" style="display:none"></span><button onclick="calMove(1)">›</button></span>
+    </div>
+    <div style="margin:4px 0 8px;display:flex;gap:8px">
+      <button class="tool-btn" onclick="logToday()">📷 Log today</button>
+      <button class="tool-btn" onclick="smartSuggest()">🌦 Suggest by weather</button>
+    </div>
+    <div class="cal-grid" id="calDow"></div>
+    <div class="cal-grid" id="calGrid" style="margin-top:4px"></div>
+    <p style="font-size:12px;color:#b89bb0;margin-top:12px">Tap a day to log what you wore — or 📝 plan a future fit. Wears feed your 📊 stats & cost-per-wear.</p>
+  </section>
+
+  <!-- PACKING VIEW -->
+  <section id="view-pack" style="display:none">
+    <div class="surprise-bar"><button class="btn-surp" onclick="newTrip()">＋ New trip</button></div>
+    <div id="packList"></div>
+  </section>
+
+  <!-- STATS VIEW -->
+  <section id="view-stats" style="display:none">
+    <div class="stat-cards" id="statCards"></div>
+    <h3 style="font-size:15px">🧺 By category</h3><div id="statCat"></div>
+    <h3 style="font-size:15px">🎨 Top colors</h3><div id="statColor"></div>
+    <h3 style="font-size:15px">🔥 Most worn</h3><div id="statTop"></div>
+    <h3 style="font-size:15px">🤔 Never worn (donate candidates)</h3><div id="statNever"></div>
+    <h3 style="font-size:15px">💤 Not in any look</h3><div id="statOrphan"></div>
+    <p style="font-size:12px;color:#b89bb0;margin-top:14px">inspired by Stylebook, Whering, Indyx, GetWardrobe & Setly 💕</p>
   </section>
 </div>
 
@@ -278,6 +351,15 @@ nav .fab .ico{width:54px;height:54px;background:linear-gradient(135deg,var(--pin
     </div>
     <h3 id="dName">—</h3>
     <div class="meta" id="dMeta"></div>
+    <div class="d-xrow" id="dX" style="display:none">
+      <input id="xBrand" maxlength="30" placeholder="brand (e.g. Zara)">
+      <input id="xPrice" type="number" inputmode="decimal" placeholder="price ($)">
+    </div>
+    <input class="txt" id="xNote" maxlength="120" placeholder="note: fabric, fit, gifted by..." style="display:none;width:100%;margin-top:.4rem;box-sizing:border-box">
+    <div class="btn-row" id="dXBtns" style="display:none;margin-top:.5rem">
+      <button id="laundryBtn" onclick="toggleLaundry()">🧺 Clean</button>
+      <button onclick="saveXtra()">💾 Save details</button>
+    </div>
     <div class="dots" id="dDots" style="margin-top:.6rem"></div>
     <div class="btn-row">
       <button class="danger" onclick="deleteFromDetail()">🗑 Delete</button>
@@ -297,9 +379,22 @@ nav .fab .ico{width:54px;height:54px;background:linear-gradient(135deg,var(--pin
   <div class="cat-wrap" id="catSheetWrap" style="margin-top:14px"></div>
   <div class="btn-row"><button onclick="closeCatSheet()">Cancel</button></div>
 </div></div>
+<div class="modal" id="dayModal"><div class="sheet">
+  <h3 id="dayTitle" style="margin-top:.2rem">—</h3>
+  <div id="dayBody"></div>
+  <div class="btn-row" style="margin-top:12px"><button style="background:var(--pink);color:#fff;border-color:var(--pink)" onclick="saveDay()">💾 Save day</button><button onclick="clearDay()">🧹 Clear</button><button onclick="closeDay()">Done</button></div>
+</div></div>
+<div class="modal" id="tripModal"><div class="sheet">
+  <h3 style="margin-top:.2rem">🧳 New trip</h3>
+  <input class="txt" id="tripName" maxlength="40" placeholder="e.g. Dubai babyyy ✈️" style="width:100%;margin-top:10px;box-sizing:border-box">
+  <input class="txt" id="tripNote" maxlength="80" placeholder="note: climate, occasions, days..." style="width:100%;margin-top:8px;box-sizing:border-box">
+  <div class="btn-row" style="margin-top:14px"><button style="background:var(--pink);color:#fff;border-color:var(--pink)" onclick="createTrip()">Create</button><button onclick="document.getElementById('tripModal').classList.remove('open')">Cancel</button></div>
+</div></div>
 <nav>
   <button class="on" id="navCloset" onclick="go('closet')"><span class="ico">👗</span>Closet</button>
+  <button id="navCal" onclick="go('cal')"><span class="ico">📅</span>Wear</button>
   <button class="fab" onclick="openAdd()"><span class="ico">＋</span></button>
+  <button id="navPack" onclick="go('pack')"><span class="ico">🧳</span>Pack</button>
   <button id="navLooks" onclick="go('outfits')"><span class="ico">✨</span>Looks</button>
 </nav>
 
@@ -307,7 +402,7 @@ nav .fab .ico{width:54px;height:54px;background:linear-gradient(135deg,var(--pin
 
 <script>
 // ============ DATA LAYER (IndexedDB) ============
-const DB='stylestash', VER=1;
+const DB='stylestash', VER=2;
 let _db=null;
 function db(){
   return new Promise((res,rej)=>{
@@ -317,6 +412,8 @@ function db(){
       const d=e.target.result;
       if(!d.objectStoreNames.contains('items')) d.createObjectStore('items',{keyPath:'id'});
       if(!d.objectStoreNames.contains('looks')) d.createObjectStore('looks',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('cal')) d.createObjectStore('cal',{keyPath:'date'});
+      if(!d.objectStoreNames.contains('pack')) d.createObjectStore('pack',{keyPath:'id'});
     };
     r.onsuccess=e=>{_db=e.target.result;res(_db)};
     r.onerror=()=>rej(r.error);
@@ -432,6 +529,7 @@ const catOf=id=>CATS.find(c=>c.id===id)||CATS.find(c=>c.id==='other');
 
 // ============ STATE ============
 let items=[], looks=[], filter='all', newPhoto=null, newCat=null, newColors=[], buildSel={}, surpItems=[], detailId=null, sortBy=localStorage.getItem('ss_sort')||'new', bulkMode=false, bulkSel=new Set(), bulkPhotos=[], bulkAis=[];
+let calRecs=[], packs=[], calCur=new Date(), dayDate=null, daySel=new Set(), dayNote='', dayLook=null, tripOpen=null, WX=null;
 
 // ============ HELPERS ============
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),1900)}
@@ -494,7 +592,8 @@ function bulkApplyCat(cat){
 
 function renderCloset(){
   const grid=document.getElementById('closetGrid'), empty=document.getElementById('closetEmpty');
-  const list=sortItems(items.filter(i=>filter==='all'||i.category===filter));
+  const q=(document.getElementById('qInput').value||'').toLowerCase();
+  const list=sortItems(items.filter(i=>(filter==='all'||i.category===filter)&&(!q||((i.name||'')+' '+(i.brand||'')+' '+(i.note||'')+' '+catOf(i.category).label).toLowerCase().includes(q))));
   empty.style.display=items.length===0?'block':'none';
   grid.style.display=items.length?'grid':'none';
   grid.classList.toggle('bulk-on',bulkMode);
@@ -525,7 +624,14 @@ function renderLooks(){
       '</div></div>';
   }).join('');
 }
-function wearLook(id){toast('Slay 💅 go rock it!');const l=looks.find(x=>x.id===id);if(l){l.worn=(l.worn||0)+1;l.lastWorn=Date.now();put('looks',l)}}
+function wearLook(id){
+  const l=looks.find(x=>x.id===id);if(!l)return;
+  l.worn=(l.worn||0)+1;l.lastWorn=Date.now();put('looks',l);
+  const key=D(new Date());const r=calRec(key)||{date:key,itemIds:[],note:''};
+  r.lookId=id;r.plan=false;
+  put('cal',r).then(()=>{const ix=calRecs.findIndex(x=>x.date===key);if(ix>=0)calRecs[ix]=r;else calRecs.push(r)});
+  toast('Logged to 📅 wear calendar ✅');
+}
 function deleteLook(id){del('looks',id).then(()=>{looks=looks.filter(l=>l.id!==id);renderLooks();updateStats();toast('Look deleted')})}
 
 function updateStats(){document.getElementById('statsPill').textContent=items.length+' items · '+looks.length+' looks'}
@@ -534,9 +640,15 @@ function go(view){
   if(view!=='closet'&&(bulkMode||bulkSel.size)){bulkMode=false;bulkSel=new Set();document.getElementById('bulkBar').classList.remove('open')}
   document.getElementById('view-closet').style.display=view==='closet'?'block':'none';
   document.getElementById('view-outfits').style.display=view==='outfits'?'block':'none';
+  ['cal','pack','stats'].forEach(v=>{const el=document.getElementById('view-'+v);if(el)el.style.display=view===v?'block':'none'});
   document.getElementById('navCloset').classList.toggle('on',view==='closet');
+  document.getElementById('navCal').classList.toggle('on',view==='cal');
+  document.getElementById('navPack').classList.toggle('on',view==='pack');
   document.getElementById('navLooks').classList.toggle('on',view==='outfits');
   if(view==='outfits')renderLooks();
+  if(view==='cal')renderCal();
+  if(view==='pack')renderPacks();
+  if(view==='stats')renderStats();
   window.scrollTo(0,0);
 }
 
@@ -1013,6 +1125,15 @@ function openDetail(id){
   document.getElementById('dName').textContent=i.name||catOf(i.category).label+' item';
   document.getElementById('dMeta').textContent=catOf(i.category).ico+' '+catOf(i.category).label+(i.colors.length?' · '+i.colors.join(', '):'');
   document.getElementById('dDots').innerHTML=i.colors.map(cid=>{const c=COLORS.find(x=>x.id===cid);return c?'<span class="dot" style="background:'+c.hex+'"></span>':''}).join('');
+  const wc=wearCounts()[id];
+  document.getElementById('dMeta').textContent=catOf(i.category).ico+' '+catOf(i.category).label+(i.colors.length?' · '+i.colors.join(', '):'')+(wc?' · worn '+wc.n+'×':'')+(i.brand?' · '+i.brand:'')+(i.price?' · $'+i.price:'')+(i.laundry?' · 🧺 in laundry':'');
+  document.getElementById('xBrand').value=i.brand||'';
+  document.getElementById('xPrice').value=i.price||'';
+  document.getElementById('xNote').value=i.note||'';
+  document.getElementById('dX').style.display='grid';
+  document.getElementById('xNote').style.display='';
+  document.getElementById('dXBtns').style.display='flex';
+  document.getElementById('laundryBtn').textContent=i.laundry?'🧺 In laundry':'🧺 Clean';
   document.getElementById('detailModal').classList.add('open');
 }
 function closeDetail(){
@@ -1031,7 +1152,7 @@ function deleteFromDetail(){
 
 // ============ SURPRISE ============
 function surpriseMe(){
-  const by=c=>items.filter(i=>i.category===c);
+  const by=c=>items.filter(i=>i.category===c&&wOK(i));
   const tops=by('tops'),bottoms=by('bottoms'),dresses=by('dresses'),shoes=by('shoes'),
         fullOut=[...dresses,...by('bengali')],hijabs=by('hijabs');
   if((!tops.length||!bottoms.length)&&!fullOut.length){
@@ -1041,10 +1162,11 @@ function surpriseMe(){
   let combo=[];
   if(fullOut.length&&Math.random()<.3){combo=[pick(fullOut)];if(shoes.length)combo.push(pick(shoes))}
   else{combo=[pick(tops),pick(bottoms)];if(shoes.length)combo.push(pick(shoes))}
+  if(WX&&WX.t<15){const out=by('outer');if(out.length)combo.push(pick(out))}
   if(hijabs.length&&Math.random()<.5)combo.push(pick(hijabs));
   surpItems=combo;
   document.getElementById('surpGrid').innerHTML=combo.map(i=>'<img src="'+i.photo+'" alt="">').join('');
-  document.getElementById('surpName').textContent=['Serving looks ✨','This one\'s cute 👀','Chef\'s kiss 🤌','Main character fit 💅','Soft girl era 🎀'][Math.floor(Math.random()*5)];
+  document.getElementById('surpName').textContent=['Serving looks ✨','This one\'s cute 👀','Chef\'s kiss 🤌','Main character fit 💅','Soft girl era 🎀'][Math.floor(Math.random()*5)]+(WX?' · '+WX.t+'° '+wEm(WX.c)+' weather-aware 🌏':'');
   document.getElementById('surpStage').classList.add('open');
 }
 function closeSurprise(){document.getElementById('surpStage').classList.remove('open')}
@@ -1089,8 +1211,184 @@ window.addEventListener('pointercancel',tiltEnd);
 (async function(){
   items=await getAll('items');
   looks=await getAll('looks');
-  renderChips();renderCloset();renderLooks();updateStats();
+  loadCal();getWeather();renderChips();renderCloset();renderLooks();updateStats();
 })();
+
+// ============ V3 ENGINE: WEATHER + WEAR CALENDAR + PACKING + STATS ============
+const D=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const wEm=c=>c===0?'☀️':c<=3?'🌤':c<=48||c===55?'🌫':c<=57?'🌦':(c>=61&&c<=82)||(c>=95)?'🌧':(c>=71&&c<=77)?'❄️':'☁️';
+async function loadCal(){calRecs=await getAll('cal');packs=await getAll('pack')}
+function calRec(date){return calRecs.find(r=>r.date===date)}
+function getWeather(){
+  try{
+    const c=JSON.parse(localStorage.getItem('ss_wx')||'null');
+    if(c&&Date.now()-c.at<30*60000){WX=c;paintWX();return}
+    if(!navigator.geolocation)return;
+    navigator.geolocation.getCurrentPosition(async p=>{
+      try{
+        const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude='+p.coords.latitude+'&longitude='+p.coords.longitude+'&current=temperature_2m,weather_code').then(x=>x.json());
+        WX={t:Math.round(r.current.temperature_2m),c:r.current.weather_code,at:Date.now()};
+        localStorage.setItem('ss_wx',JSON.stringify(WX));paintWX();
+      }catch(e){}
+    },()=>{},{timeout:8000});
+  }catch(e){}
+}
+function paintWX(){const el=document.getElementById('wxChip');if(el&&WX){el.style.display='inline-flex';el.innerHTML='<b>'+WX.t+'°</b> '+wEm(WX.c)}}
+function wOK(i){
+  if(!WX)return true;
+  if(WX.t>=25&&i.category==='outer')return false;
+  if(WX.t>=28&&i.category==='other'&&!/hat|cap/i.test(i.name||''))return false;
+  return true;
+}
+function calMove(d){calCur.setMonth(calCur.getMonth()+d);renderCal()}
+function renderCal(){
+  const y=calCur.getFullYear(),m=calCur.getMonth();
+  document.getElementById('calTitle').textContent=calCur.toLocaleDateString(undefined,{month:'long',year:'numeric'});
+  document.getElementById('calDow').innerHTML=['S','M','T','W','T','F','S'].map(x=>'<div class="cal-dow">'+x+'</div>').join('');
+  const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate();
+  let h='';
+  for(let i=0;i<first;i++)h+='<div></div>';
+  for(let d=1;d<=days;d++){
+    const key=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const r=calRec(key);
+    let bg='';
+    if(r){
+      const look=r.lookId?looks.find(l=>l.id===r.lookId):null;
+      const iid=look?look.items[0]:(r.itemIds&&r.itemIds.length?r.itemIds[0]:null);
+      const it=items.find(x=>x.id===iid);
+      if(it)bg="background-image:url('"+it.photo+"')";
+    }
+    h+='<div class="cal-cell'+(key===D(new Date())?' today':'')+(r&&r.plan?' plan':'')+'" '+(bg?"style=\""+bg+"\"":'')+' onclick="openDay(\''+key+'\')"><span class="dnum">'+d+'</span>'+(r?'<span class="wico">'+(r.plan?'📝':'✅')+'</span>':'')+'</div>';
+  }
+  document.getElementById('calGrid').innerHTML=h;
+  getWeather();
+}
+function openDay(key){
+  dayDate=key;
+  const r=calRec(key);
+  daySel=new Set(r&&r.itemIds||[]);dayLook=r&&r.lookId||null;dayNote=r&&r.note||'';
+  const future=new Date(key+'T12:00')>new Date();
+  document.getElementById('dayTitle').textContent=(future?'📝 Plan ':'📷 Log ')+new Date(key+'T12:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+  let h='';
+  if(looks.length)h+='<div style="font-size:12px;color:#9b7a90;margin-top:6px">pick a saved look:</div><div class="chips2">'+looks.map(l=>'<button class="'+(dayLook===l.id?'on':'')+'" onclick="dayLook=dayLook===\''+l.id+'\'?null:\''+l.id+'\';openDay(\''+key+'\')">'+(l.name||'Look')+'</button>').join('')+'</div>';
+  h+='<div style="font-size:12px;color:#9b7a90;margin-top:6px">and/or single items:</div><div class="mini-grid">'+items.map(i=>'<div class="item'+(daySel.has(i.id)?' pick-on':'')+'" onclick="dayPickTog(\''+i.id+'\')"><img src="'+i.photo+'" loading="lazy" alt=""><span class="cat-tag">'+catOf(i.category).ico+'</span></div>').join('')+'</div>';
+  h+='<input class="txt" style="width:100%;margin-top:8px;box-sizing:border-box" maxlength="120" placeholder="note: occasion, weather, mood..." value="'+(dayNote||'').replace(/"/g,'&quot;')+'" onchange="dayNote=this.value">';
+  document.getElementById('dayBody').innerHTML=h;
+  document.getElementById('dayModal').classList.add('open');
+}
+function dayPickTog(id){if(daySel.has(id))daySel.delete(id);else daySel.add(id);openDay(dayDate)}
+function closeDay(){document.getElementById('dayModal').classList.remove('open')}
+function saveDay(){
+  if(!dayLook&&!daySel.size){clearDay();return}
+  const future=new Date(dayDate+'T12:00')>new Date();
+  const rec={date:dayDate,lookId:dayLook,itemIds:[...daySel],note:dayNote,plan:future};
+  put('cal',rec).then(()=>{
+    const ix=calRecs.findIndex(r=>r.date===dayDate);
+    if(ix>=0)calRecs[ix]=rec;else calRecs.push(rec);
+    closeDay();renderCal();toast(future?'Planned 📝':'Logged ✅');
+  });
+}
+function clearDay(){
+  if(dayDate)del('cal',dayDate).then(()=>{
+    calRecs=calRecs.filter(r=>r.date!==dayDate);
+    closeDay();renderCal();toast('Day cleared');
+  });
+}
+function logToday(){openDay(D(new Date()))}
+function wearCounts(){
+  const map={};
+  calRecs.forEach(r=>{
+    const ids=new Set(r.itemIds||[]);
+    const l=r.lookId?looks.find(x=>x.id===r.lookId):null;
+    if(l)l.items.forEach(id=>ids.add(id));
+    ids.forEach(id=>{map[id]=map[id]||{n:0,last:''};map[id].n++;if(r.date>map[id].last)map[id].last=r.date});
+  });
+  return map;
+}
+function smartSuggest(){
+  if(!WX){toast('No weather yet 📍 allow location');getWeather();return}
+  go('outfits');surpriseMe();
+}
+// ---- PACKING ----
+function newTrip(){document.getElementById('tripName').value='';document.getElementById('tripNote').value='';document.getElementById('tripModal').classList.add('open')}
+function createTrip(){
+  const t={id:'p'+Date.now(),name:document.getElementById('tripName').value.trim()||'Trip ✈️',note:document.getElementById('tripNote').value.trim(),items:[],created:Date.now()};
+  put('pack',t).then(()=>{packs.unshift(t);document.getElementById('tripModal').classList.remove('open');openTrip(t.id);toast('Trip created 🧳')});
+}
+function renderPacks(){
+  const el=document.getElementById('packList');
+  if(tripOpen){openTrip(tripOpen);return}
+  if(!packs.length){el.innerHTML='<div class="empty" style="display:block"><div class="big">🧳</div><h3>No trips yet</h3><p>Create a packing list for your next getaway.<br>Tap items to add, check them off as you pack 📦</p></div>';return}
+  el.innerHTML=packs.map(t=>{
+    const done=t.items.filter(x=>x.done).length;
+    const thumbs=t.items.slice(0,12).map(x=>{const i=items.find(it=>it.id===x.id);return i?'<img src="'+i.photo+'" alt="">':''}).join('');
+    return '<div class="pcard" onclick="openTrip(\''+t.id+'\')"><h3>'+t.name+'<span style="font-size:12px;color:#b89bb0">'+done+'/'+t.items.length+' packed</span></h3>'+
+      (t.note?'<p style="font-size:12px;color:#b89bb0;margin:4px 0 0">'+t.note+'</p>':'')+
+      (thumbs?'<div style="display:flex;gap:4px;margin-top:8px;overflow:auto">'+thumbs+'</div>':'')+'</div>';
+  }).join('');
+}
+function openTrip(id){
+  tripOpen=id;const t=packs.find(x=>x.id===id);if(!t){tripOpen=null;renderPacks();return}
+  let h='<div class="cal-head"><h2>🧳 '+t.name+'</h2><button onclick="tripOpen=null;renderPacks()">✕</button></div>'+
+    (t.note?'<p style="font-size:12px;color:#b89bb0;margin:0">'+t.note+'</p>':'')+
+    '<div style="font-size:12px;color:#9b7a90;margin-top:8px">tap items to add / remove:</div>'+
+    '<div class="mini-grid">'+items.map(i=>'<div class="item'+(t.items.some(x=>x.id===i.id)?' pick-on':'')+'" onclick="tripTog(\''+t.id+'\',\''+i.id+'\')"><img src="'+i.photo+'" loading="lazy" alt=""><span class="cat-tag">'+catOf(i.category).ico+'</span></div>').join('')+'</div>'+
+    '<div style="margin-top:12px">'+t.items.map(x=>{const i=items.find(it=>it.id===x.id);return i?'<div class="trip-item"><span class="chk'+(x.done?' on':'')+'" onclick="chkTrip(\''+t.id+'\',\''+x.id+'\')">'+(x.done?'✓':'')+'</span><img src="'+i.photo+'" onclick="openDetail(\''+i.id+'\')"><div style="flex:1;font-size:13px">'+(i.name||catOf(i.category).label)+'<br><small style="color:#b89bb0">'+catOf(i.category).ico+' '+catOf(i.category).label+(i.brand?' · '+i.brand:'')+'</small></div><button class="del" onclick="tripDel(\''+t.id+'\',\''+x.id+'\')">🗑</button></div>':''}).join('')+'</div>'+
+    '<div class="btn-row" style="margin-top:12px"><button class="danger" onclick="delTrip(\''+t.id+'\')">🗑 Delete trip</button></div>';
+  document.getElementById('packList').innerHTML=h;
+  window.scrollTo(0,0);
+}
+function tripTog(tid,iid){
+  const t=packs.find(x=>x.id===tid);if(!t)return;
+  const ix=t.items.findIndex(x=>x.id===iid);
+  if(ix>=0)t.items.splice(ix,1);else t.items.push({id:iid,done:false});
+  put('pack',t).then(()=>openTrip(tid));
+}
+function chkTrip(tid,iid){const t=packs.find(x=>x.id===tid);if(!t)return;const x=t.items.find(y=>y.id===iid);if(x){x.done=!x.done;put('pack',t).then(()=>openTrip(tid))}}
+function tripDel(tid,iid){const t=packs.find(x=>x.id===tid);if(!t)return;t.items=t.items.filter(y=>y.id!==iid);put('pack',t).then(()=>openTrip(tid))}
+function delTrip(tid){del('pack',tid).then(()=>{packs=packs.filter(t=>t.id!==tid);tripOpen=null;renderPacks();toast('Trip deleted')})}
+// ---- STATS ----
+function renderStats(){
+  const w=wearCounts();
+  const value=items.reduce((s,i)=>s+(parseFloat(i.price)||0),0);
+  const wearTotal=Object.values(w).reduce((s,x)=>s+x.n,0);
+  const cpw=wearTotal&&value?(value/wearTotal).toFixed(2):null;
+  const laundry=items.filter(i=>i.laundry).length;
+  document.getElementById('statCards').innerHTML=
+    '<div class="stat-card"><b>'+items.length+'</b><small>items 👗</small></div>'+
+    '<div class="stat-card"><b>'+(value?Math.round(value).toLocaleString():'—')+'</b><small>closet value 💰</small></div>'+
+    '<div class="stat-card"><b>'+wearTotal+'</b><small>wears logged ✅</small></div>'+
+    '<div class="stat-card"><b>'+(cpw?cpw:'—')+'</b><small>avg cost / wear 💸</small></div>'+
+    '<div class="stat-card"><b>'+looks.length+'</b><small>looks ✨</small></div>'+
+    (laundry?'<div class="stat-card"><b>'+laundry+'</b><small>in laundry 🧺</small></div>':'');
+  const cc={};items.forEach(i=>cc[i.category]=(cc[i.category]||0)+1);
+  const mc=Math.max(...Object.values(cc),1);
+  document.getElementById('statCat').innerHTML=Object.entries(cc).sort((a,b)=>b[1]-a[1]).map(([c,n])=>'<div class="bar-row"><span class="lbl2">'+catOf(c).ico+' '+catOf(c).label+'</span><div class="bar"><i style="width:'+(n/mc*100)+'%"></i></div><b>'+n+'</b></div>').join('');
+  const colCount={};items.forEach(i=>i.colors.forEach(c=>colCount[c]=(colCount[c]||0)+1));
+  const topCol=Object.entries(colCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const mcol=Math.max(...topCol.map(x=>x[1]),1);
+  document.getElementById('statColor').innerHTML=topCol.length?topCol.map(([c,n])=>{const col=COLORS.find(x=>x.id===c);return '<div class="bar-row"><span class="lbl2">'+(col?'<span class="dot" style="background:'+col.hex+'"></span>':'')+(col&&col.label?col.label:c)+'</span><div class="bar"><i style="width:'+(n/mcol*100)+'%;background:'+(col?col.hex:'var(--pink)')+'"></i></div><b>'+n+'</b></div>'}).join(''):'<p style="font-size:12px;color:#b89bb0">no colors tagged yet</p>';
+  const top=items.map(i=>({i,n:(w[i.id]||{n:0}).n,last:(w[i.id]||{last:''}).last})).filter(x=>x.n>0).sort((a,b)=>b.n-a.n).slice(0,5);
+  document.getElementById('statTop').innerHTML=top.length?top.map(x=>'<div class="trip-item" onclick="openDetail(\''+x.i.id+'\')"><img src="'+x.i.photo+'" alt=""><div style="flex:1;font-size:13px">'+(x.i.name||catOf(x.i.category).label)+'<br><small style="color:#b89bb0">'+x.n+'× worn · last '+x.last+'</small></div></div>').join(''):'<p style="font-size:12px;color:#b89bb0">log wears on the 📅 calendar to see this</p>';
+  const never=items.filter(i=>!(w[i.id]||{n:0}).n);
+  document.getElementById('statNever').innerHTML=never.length?never.slice(0,14).map(i=>'<img src="'+i.photo+'" style="width:52px;height:64px;object-fit:cover;border-radius:9px;margin:2px;cursor:pointer" onclick="openDetail(\''+i.id+'\')" alt="">').join('')+'<p style="font-size:11px;color:#b89bb0">'+never.length+' items never worn — donate candidates 💭</p>':'<p style="font-size:12px;color:#b89bb0">everything\'s been worn 🎉</p>';
+  const inLooks=new Set();looks.forEach(l=>l.items.forEach(id=>inLooks.add(id)));
+  const orphan=items.filter(i=>!inLooks.has(i.id));
+  document.getElementById('statOrphan').innerHTML=orphan.length?orphan.slice(0,14).map(i=>'<img src="'+i.photo+'" style="width:52px;height:64px;object-fit:cover;border-radius:9px;margin:2px;cursor:pointer" onclick="openDetail(\''+i.id+'\')" alt="">').join('')+'<p style="font-size:11px;color:#b89bb0">'+orphan.length+' items not in any saved look 💤</p>':'<p style="font-size:12px;color:#b89bb0">all items used in looks 🎀</p>';
+}
+// ---- ITEM DETAILS (brand/price/note/laundry) ----
+function saveXtra(){
+  const i=items.find(x=>x.id===detailId);if(!i)return;
+  i.brand=document.getElementById('xBrand').value.trim();
+  i.price=parseFloat(document.getElementById('xPrice').value)||0;
+  i.note=document.getElementById('xNote').value.trim();
+  put('items',i).then(()=>{openDetail(i.id);renderCloset();toast('Details saved 💅')});
+}
+function toggleLaundry(){
+  const i=items.find(x=>x.id===detailId);if(!i)return;
+  i.laundry=!i.laundry;
+  put('items',i).then(()=>{openDetail(i.id);toast(i.laundry?'Marked in laundry 🧺':'Clean & back in rotation ✨')});
+}
 </script>
 </body>
 </html>
